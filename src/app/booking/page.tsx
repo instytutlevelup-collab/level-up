@@ -1,0 +1,900 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { notifyBooking } from "@/lib/notifications"
+
+import { db, auth } from "@/lib/firebase"
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  DocumentData,
+} from "firebase/firestore"
+import { onAuthStateChanged } from "firebase/auth"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
+import { format, parseISO } from "date-fns"
+import { pl } from "date-fns/locale"
+
+const daysOfWeek = [
+  { label: "Niedziela", value: "sunday" },
+  { label: "Poniedziałek", value: "monday" },
+  { label: "Wtorek", value: "tuesday" },
+  { label: "Środa", value: "wednesday" },
+  { label: "Czwartek", value: "thursday" },
+  { label: "Piątek", value: "friday" },
+  { label: "Sobota", value: "saturday" },
+]
+
+const normalizeMode = (v: string) => {
+  const s = (v || "").toLowerCase().trim()
+  if (["u korepetytora", "tutorplace", "tutor place", "tutor_place"].includes(s)) return "tutor_place"
+  if (["z dojazdem do ucznia", "z dojazdem", "dojazd", "travel"].includes(s)) return "travel"
+  if (["online"].includes(s)) return "online"
+  return s
+}
+
+export default function BookingPage() {
+  const [subjects, setSubjects] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const snap = await getDocs(collection(db, "subjects"))
+      setSubjects(
+        snap.docs
+          .map(doc => doc.data().name)
+          .sort((a: string, b: string) => a.localeCompare(b))
+      )
+    }
+    fetchSubjects()
+  }, [])
+  const [currentUser , setCurrentUser ] = useState<UserData | null>(null)
+  const [availability, setAvailability] = useState<DocumentData[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [tutors, setTutors] = useState<DocumentData[]>([])
+  const [tutorId, setTutorId] = useState("")
+  const [subject, setSubject] = useState("")
+  const [duration, setDuration] = useState(60)
+  const [linkedChildren, setLinkedChildren] = useState<DocumentData[]>([])
+  const [selectedChildId, setSelectedChildId] = useState("")
+  const [day, setDay] = useState("")
+  const [specificDate, setSpecificDate] = useState("")
+  const [time, setTime] = useState("")
+  const [lessonMode, setLessonMode] = useState("")
+// Booking interface for typing bookings
+interface Booking {
+  id: string;
+  studentId: string;
+  tutorId?: string;
+  studentName: string;
+  fullDate?: string;
+  time?: string;
+  createdByRole: "parent" | "student" | "tutor" | "admin";
+  subject?: string;
+  status?: string;
+  duration?: number;
+  lessonMode?: string;
+  isRecurring?: boolean;
+  day?: string | null;
+  tutorName?: string;
+  originalLessonId?: string;
+  createdAt?: string;
+  createdById?: string;
+}
+
+  // Odrabiane lekcje (makeup)
+  const [makeupForLessonId, setMakeupForLessonId] = useState<string | null>(null)
+
+  const [schoolYearStart, setSchoolYearStart] = useState<Date | null>(null)
+  const [schoolYearEnd, setSchoolYearEnd] = useState<Date | null>(null)
+
+// UserData interface for typing currentUser
+interface UserData {
+  id: string;
+  accountType?: "parent" | "student" | "tutor" | "admin";
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  linkedAccounts?: { studentId: string; studentName: string }[];
+}
+
+useEffect(() => {
+  const fetchUserAndBookings = async (user: DocumentData | null) => {
+    if (user) {
+      const userDoc = await getDocs(
+        query(collection(db, "users"), where("email", "==", user.email))
+      );
+      const docSnap = userDoc.docs[0];
+      if (docSnap) {
+        // Always include accountType and other fields from Firestore
+        const userData: UserData = { id: docSnap.id, ...(docSnap.data() as Partial<UserData>) };
+        setCurrentUser(userData);
+
+        // Updated logic for linked children/students
+        if (userData.accountType === "parent") {
+          // Pobierz wszystkich uczniów
+          const studentsSnap = await getDocs(
+            query(collection(db, "users"), where("accountType", "==", "student"))
+          );
+
+          const students = studentsSnap.docs
+            .map(s => {
+              const data = s.data();
+              return {
+                id: s.id,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                parentEmail: data.parentEmail || null
+              };
+            })
+            .filter(s => s.parentEmail === userData.email); // filtrujemy po email rodzica
+
+          setLinkedChildren(students);
+        }
+        if (userData.accountType === "admin") {
+          // For admins: get all students
+          const studentsSnap = await getDocs(
+            query(collection(db, "users"), where("accountType", "==", "student"))
+          );
+          const students = studentsSnap.docs.map(s => ({
+            id: s.id,
+            firstName: s.data().firstName,
+            lastName: s.data().lastName,
+          }));
+          setLinkedChildren(students);
+        }
+        // Nie pobieraj lekcji tutaj, poczekaj na ustawienie currentUser
+      }
+    } else {
+      window.location.href = "/auth/login";
+    }
+  };
+  const unsub = onAuthStateChanged(auth, fetchUserAndBookings);
+  return () => unsub();
+}, []);
+
+
+// Dla korepetytora: pobierz wszystkich uczniów (niezależnie od typu konta rodzica)
+useEffect(() => {
+  const fetchAllStudents = async () => {
+    if (currentUser?.accountType === "tutor") {
+      const usersSnap = await getDocs(collection(db, "users"))
+      const allStudents = usersSnap.docs
+        .filter(doc => doc.data().accountType === "student")
+        .map(doc => ({
+          id: doc.id,
+          firstName: doc.data().firstName,
+          lastName: doc.data().lastName,
+        }));
+      setLinkedChildren(allStudents);
+    }
+  }
+  fetchAllStudents()
+}, [currentUser])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [avail, books, tutorsData] = await Promise.all([
+        getDocs(collection(db, "availability")),
+        getDocs(collection(db, "bookings")),
+        getDocs(query(collection(db, "users"), where("accountType", "==", "tutor")))
+      ])
+      setAvailability(avail.docs.map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          lessonType: Array.isArray(data.lessonType)
+            ? data.lessonType.map((m: string) => normalizeMode(m))
+            : [],
+        }
+      }))
+      setBookings(books.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)))
+      setTutors(tutorsData.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+
+      const settingsSnap = await getDocs(collection(db, "settings"))
+      if (!settingsSnap.empty) {
+        const yearData = settingsSnap.docs[0].data()
+        setSchoolYearStart(new Date(yearData.startDate))
+        setSchoolYearEnd(new Date(yearData.endDate))
+      }
+    }
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    if (currentUser?.accountType === "tutor") {
+      setTutorId(currentUser.id)
+    } else {
+      setTutorId("")
+    }
+  }, [currentUser])
+
+  const formatPolishDate = (date: Date | string) =>
+  format(typeof date === 'string' ? parseISO(date) : date, 'EEEE, d MMMM yyyy', { locale: pl })
+
+  // Rozszerzona funkcja sprawdzająca zajętość slotu, uwzględnia odwołane lekcje i makeup_used
+  const isSlotTaken = (tutorId: string, date: string, time: string, duration: number) => {
+  const givenDate = new Date(date)
+    const givenDay = daysOfWeek[givenDate.getDay()]?.value
+    // statuses to ignore as not active
+    const ignoredStatuses = ["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used"];
+    return bookings.some(b => {
+      if (b.tutorId !== tutorId) return false
+
+      // ignoruj odwołane lekcje i makeup_used
+      if (ignoredStatuses.includes(b.status ?? "")) return false
+
+      // Sprawdzenie rezerwacji jednorazowej
+      if (!b.isRecurring && b.fullDate === (date ?? "")) {
+        // ignoruj anulowane lekcje (również "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used")
+        if (b.status && ignoredStatuses.includes(b.status)) return false;
+        if (!b.time) return false;
+        const [bh, bm] = (b.time || "").split(":").map(Number);
+        const bStart = bh * 60 + bm
+        const bEnd = bStart + (b.duration ?? 60)
+        const [th, tm] = (time ?? "").split(":").map(Number)
+        const tStart = th * 60 + tm
+        const tEnd = tStart + duration
+        return !(tEnd <= bStart || tStart >= bEnd)
+      }
+
+      // Sprawdzenie rezerwacji cyklicznej (weekly)
+      if (b.isRecurring && b.day === givenDay && schoolYearStart && schoolYearEnd) {
+        const d = new Date(date ?? "")
+        if (d < schoolYearStart || d > schoolYearEnd) return false
+        if (!b.time) return false;
+        const [bh, bm] = (b.time || "").split(":").map(Number);
+        const bStart = bh * 60 + bm
+        const bEnd = bStart + (b.duration ?? 60)
+        const [th, tm] = (time ?? "").split(":").map(Number)
+        const tStart = th * 60 + tm
+        const tEnd = tStart + duration
+        return !(tEnd <= bStart || tStart >= bEnd)
+      }
+
+      return false
+    })
+  }
+
+  // Zwraca dostępne daty, filtrując zajęte (zarówno jednorazowe, jak i cykliczne)
+  const getAvailableDates = () => {
+    if (!schoolYearStart || !schoolYearEnd) return []
+
+    const datesSet = new Set<string>()
+    const today = new Date()
+
+    availability.forEach((a) => {
+      if (a.tutorId !== tutorId) return
+      if (
+        lessonMode &&
+        (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
+      ) return
+      if (a.type === "one-time") {
+        const date = a.date
+        if (new Date(date) >= today) {
+          const durationMinutes = a.endTime
+            ? (parseInt(a.endTime.split(":")[0]) * 60 + parseInt(a.endTime.split(":")[1]))
+              - (parseInt(a.startTime.split(":")[0]) * 60 + parseInt(a.startTime.split(":")[1]))
+            : 60;
+
+          // sprawdzamy czy istnieje aktywna rezerwacja (nie anulowana) dla tego dnia i godziny
+          const activeBooking = bookings.some(b =>
+            b.tutorId === tutorId &&
+            b.fullDate === date &&
+            !["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor"].includes(b.status ?? "")
+          );
+
+          if (!activeBooking && !isSlotTaken(tutorId, date || "", a.startTime || "", durationMinutes)) {
+            datesSet.add(date);
+          }
+        }
+      }
+      if (a.type === "weekly") {
+        // Upewnij się, że oba są lowerCase
+        const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(a.day).toLowerCase())
+        if (dayIndex === -1) return
+        const firstDate = new Date(schoolYearStart)
+        const diff = (dayIndex - firstDate.getDay() + 7) % 7
+        firstDate.setDate(firstDate.getDate() + diff)
+        for (let d = new Date(firstDate); d <= schoolYearEnd; d.setDate(d.getDate() + 7)) {
+          if (d >= today) {
+            const dateStr = format(new Date(d), "yyyy-MM-dd") ?? ""
+            const [sh, sm] = (a.startTime || "").split(":").map(Number)
+            const [eh, em] = (a.endTime || "").split(":").map(Number)
+            const start = sh * 60 + sm
+            const end = eh * 60 + em
+            let available = false
+            for (let t = start; t + duration <= end; t += 10) {
+              const h = String(Math.floor(t / 60)).padStart(2, "0")
+              const m = String(t % 60).padStart(2, "0")
+              const timeStr = `${h}:${m}`
+              if (!isSlotTaken(tutorId, dateStr || "", timeStr || "", duration)) {
+                available = true
+                break
+              }
+            }
+            if (available) {
+              datesSet.add(dateStr)
+            }
+          }
+        }
+      }
+    })
+    return Array.from(datesSet).sort()
+  }
+
+  // Zwraca dostępne sloty, uwzględniając blokowanie także przez powtarzające się rezerwacje
+  const getAvailableSlots = (type: "weekly" | "one-time") => {
+    const slots: string[] = []
+    const filtered = availability.filter(a => {
+      if (a.tutorId !== tutorId) return false
+      if (
+        lessonMode &&
+        (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
+      ) return false
+      if (type === "weekly") {
+        // Porównuj day w lowerCase
+        return a.type === "weekly" && String(a.day).toLowerCase() === String(day).toLowerCase()
+      }
+      if (type === "one-time") {
+        if (!specificDate) return false
+        if (a.type === "one-time" && a.date === specificDate) return true
+        if (a.type === "weekly") {
+          const selectedDate = new Date(specificDate)
+          const selectedDayValue = daysOfWeek[selectedDate.getDay()]?.value
+          // Porównaj oba w lowerCase
+          return String(a.day).toLowerCase() === selectedDayValue?.toLowerCase()
+        }
+      }
+      return false
+    })
+    let fullDate = specificDate;
+    if (type === "weekly" && day && schoolYearStart) {
+      const today = new Date();
+      const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(day).toLowerCase()); // 0-6
+      const first = new Date(schoolYearStart);
+      const offset = (dayIndex - first.getDay() + 7) % 7;
+      first.setDate(first.getDate() + offset);
+      while (first < today) {
+        first.setDate(first.getDate() + 7);
+      }
+      fullDate = format(first, "yyyy-MM-dd");
+    }
+    if (!fullDate) return slots
+    filtered.forEach(a => {
+      const [sh, sm] = (a.startTime || "").split(":").map(Number)
+      const [eh, em] = (a.endTime || "").split(":").map(Number)
+      const start = sh * 60 + sm
+      const end = eh * 60 + em
+      for (let t = start; t + duration <= end; t += 10) {
+        const h = String(Math.floor(t / 60)).padStart(2, "0")
+        const m = String(t % 60).padStart(2, "0")
+        const timeStr = `${h}:${m}`
+        if (!isSlotTaken(tutorId || "", fullDate || "", timeStr || "", duration)) {
+          slots.push(timeStr)
+        }
+      }
+    })
+    return [...new Set(slots)]
+  }
+
+  // Rozszerzona obsługa rezerwacji cyklicznych — zapisuje wszystkie wystąpienia do końca roku szkolnego
+  const handleBooking = async (type: "weekly" | "one-time") => {
+    const refreshBookings = async () => {
+      const booksSnap = await getDocs(collection(db, "bookings"));
+      setBookings(booksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
+    }
+
+    if (
+      !tutorId ||
+      !subject ||
+      !lessonMode ||
+      !time ||
+      (type === "weekly" && !day) ||
+      (type === "one-time" && !specificDate) ||
+      (currentUser?.accountType === "parent" && !selectedChildId)
+    ) {
+      alert("Uzupełnij wszystkie wymagane pola.")
+      return
+    }
+
+    let fullDate = specificDate;
+    if (type === "weekly" && day && schoolYearStart) {
+      const today = new Date();
+      const dayIndex = daysOfWeek.findIndex(d => d.value === day);
+      const first = new Date(schoolYearStart);
+      const offset = (dayIndex - first.getDay() + 7) % 7;
+      first.setDate(first.getDate() + offset);
+      while (first < today) {
+        first.setDate(first.getDate() + 7);
+      }
+      fullDate = format(first, "yyyy-MM-dd");
+    }
+
+    let studentId = currentUser!.id
+    let studentName = `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`
+
+    if (
+      (currentUser?.accountType === "parent" ||
+        currentUser?.accountType === "tutor" ||
+        currentUser?.accountType === "admin") &&
+      selectedChildId
+    ) {
+      const selectedChild = linkedChildren.find(c => c.id === selectedChildId)
+      studentName = `${selectedChild?.firstName} ${selectedChild?.lastName}`
+
+      const usersSnap = await getDocs(
+        query(
+          collection(db, "users"),
+          where("firstName", "==", selectedChild?.firstName),
+          where("lastName", "==", selectedChild?.lastName),
+          where("accountType", "==", "student")
+        )
+      )
+      if (!usersSnap.empty) {
+        studentId = usersSnap.docs[0].id
+      } else {
+        studentId = selectedChildId
+      }
+    }
+
+    if (isSlotTaken(tutorId || "", fullDate || "", time || "", duration)) {
+      alert("Ten termin jest już zajęty.")
+      return
+    }
+
+    const tutorName =
+      tutors.find(t => t.id === tutorId)?.firstName +
+      " " +
+      tutors.find(t => t.id === tutorId)?.lastName
+
+    try {
+      if (type === "weekly" && day && schoolYearStart && schoolYearEnd) {
+        const dayIndex = daysOfWeek.findIndex(d => d.value === day)
+        const first = new Date(schoolYearStart)
+        const offset = (dayIndex - first.getDay() + 7) % 7
+        first.setDate(first.getDate() + offset)
+        const d = new Date(first)
+        const toAdd: Omit<Booking, "id">[] = []
+        const now = new Date()
+        while (d <= schoolYearEnd) {
+          if (d >= now) {
+            const dStr = format(new Date(d), "yyyy-MM-dd")
+            if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration)) {
+              // If makeupForLessonId is set, treat the first occurrence as odrabiana (makeup), rest as scheduled
+              if (
+                makeupForLessonId &&
+                toAdd.length === 0 &&
+                (currentUser?.accountType === "student" ||
+                  currentUser?.accountType === "parent" ||
+                  currentUser?.accountType === "admin")
+              ) {
+                toAdd.push({
+                  tutorId,
+                  tutorName,
+                  studentId,
+                  studentName,
+                  time,
+                  duration,
+                  subject,
+                  lessonMode,
+                  status: "makeup",
+                  originalLessonId: makeupForLessonId,
+                  day,
+                  fullDate: dStr,
+                  isRecurring: true,
+                  createdAt: new Date().toISOString(),
+                  createdById: currentUser?.id ?? "",
+                  createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
+                })
+              } else {
+                toAdd.push({
+                  tutorId,
+                  tutorName,
+                  studentId,
+                  studentName,
+                  time,
+                  duration,
+                  subject,
+                  lessonMode,
+                  status: "scheduled",
+                  day,
+                  fullDate: dStr,
+                  isRecurring: true,
+                  createdAt: new Date().toISOString(),
+                  createdById: currentUser?.id ?? "",
+                  createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
+                })
+              }
+            }
+          }
+          d.setDate(d.getDate() + 7)
+        }
+        if (toAdd.length === 0) {
+          alert("Wszystkie terminy cykliczne są już zajęte.")
+          return
+        }
+        for (const bookingData of toAdd) {
+          // If this is a makeup booking, update original booking's status after adding
+          let docRef;
+          if (
+            bookingData.status === "makeup" &&
+            bookingData.originalLessonId
+          ) {
+            docRef = await addDoc(collection(db, "bookings"), bookingData)
+            await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
+          } else {
+            docRef = await addDoc(collection(db, "bookings"), bookingData)
+          }
+          await notifyBooking({
+            booking: {
+              id: docRef.id,
+              studentId: bookingData.studentId,
+              tutorId: bookingData.tutorId,
+              studentName: bookingData.studentName,
+              fullDate: bookingData.fullDate,
+              time: bookingData.time,
+              createdByRole: bookingData.createdByRole,
+            },
+          })
+        }
+        await refreshBookings();
+        alert(`Zarezerwowano lekcje cykliczne (${toAdd.length} terminów)!`)
+      } else {
+        // one-time booking
+        const bookingData: Omit<Booking, "id"> = {
+          tutorId,
+          tutorName,
+          studentId,
+          studentName,
+          time,
+          duration,
+          subject,
+          lessonMode,
+          day: null,
+          fullDate,
+          isRecurring: false,
+          createdAt: new Date().toISOString(),
+          createdById: currentUser!.id,
+          createdByRole: currentUser?.accountType ?? "student"
+        }
+        if (
+          makeupForLessonId &&
+          (currentUser?.accountType === "student" ||
+            currentUser?.accountType === "parent" ||
+            currentUser?.accountType === "admin")
+        ) {
+          bookingData.status = "makeup"
+          bookingData.originalLessonId = makeupForLessonId
+        } else {
+          bookingData.status = "scheduled"
+        }
+        let docRef;
+        if (
+          bookingData.status === "makeup" &&
+          bookingData.originalLessonId
+        ) {
+          docRef = await addDoc(collection(db, "bookings"), bookingData)
+          await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
+        } else {
+          docRef = await addDoc(collection(db, "bookings"), bookingData)
+        }
+        await notifyBooking({
+          booking: {
+            id: docRef.id,
+            studentId: bookingData.studentId,
+            tutorId: bookingData.tutorId,
+            studentName: bookingData.studentName,
+            fullDate: bookingData.fullDate,
+            time: bookingData.time,
+            createdByRole: bookingData.createdByRole,
+          },
+        })
+        await refreshBookings();
+        alert("Zarezerwowano lekcję!")
+      }
+      setDay("")
+      setSpecificDate("")
+      setTime("")
+      setSubject("")
+      setTutorId("")
+      setSelectedChildId("")
+      setLessonMode("")
+      setMakeupForLessonId(null)
+    } catch (err) {
+      console.error(err)
+      alert("Błąd podczas rezerwacji.")
+    }
+  }
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setTime("")
+    }
+  }, [lessonMode, tutorId, specificDate, day])
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 flex flex-wrap justify-between gap-6">
+      <Card className="w-full md:w-[calc(50%-0.75rem)]">
+        <CardHeader><CardTitle>Rezerwacja stała</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {(currentUser?.accountType === "admin") && (
+            <>
+              <Label>Korepetytor</Label>
+              <Select value={tutorId} onValueChange={setTutorId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
+                <SelectContent>
+                  {tutors.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          <Label>Tryb zajęć</Label>
+          <Select value={lessonMode} onValueChange={(v) => setLessonMode(v.toLowerCase())}>
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz tryb zajęć" />
+            </SelectTrigger>
+            <SelectContent>
+              {currentUser &&
+                (currentUser.accountType === "student" || currentUser.accountType === "parent" ? (
+                  <>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="u korepetytora">U korepetytora</SelectItem>
+                  </>
+                ) : null)}
+              {currentUser &&
+                (currentUser.accountType === "tutor" || currentUser.accountType === "admin" ? (
+                  <>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="u korepetytora">U korepetytora</SelectItem>
+                    <SelectItem value="z dojazdem do ucznia">Z dojazdem do ucznia</SelectItem>
+                  </>
+                ) : null)}
+            </SelectContent>
+          </Select>
+
+          <Label>Dzień tygodnia</Label>
+          <Select value={day} onValueChange={setDay}>
+            <SelectTrigger><SelectValue placeholder="Wybierz dzień" /></SelectTrigger>
+            <SelectContent>
+              {(() => {
+                // Build a set of allowed days for the current tutor and selected lessonMode
+                const allowedDays = new Set<string>();
+                availability.forEach(a => {
+                  if (
+                    a.tutorId === tutorId &&
+                    a.type === "weekly" &&
+                    lessonMode &&
+                    Array.isArray(a.lessonType) &&
+                    a.lessonType.includes(normalizeMode(lessonMode))
+                  ) {
+                    // a.day may be e.g. "monday" etc.
+                    allowedDays.add(String(a.day).toLowerCase().trim());
+                  }
+                });
+                return daysOfWeek
+                  .filter(d => allowedDays.has(d.value.toLowerCase()))
+                  .map(d => (
+                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                  ));
+              })()}
+            </SelectContent>
+          </Select>
+
+          <Label>Godzina</Label>
+          <Select value={time} onValueChange={setTime}>
+            <SelectTrigger><SelectValue placeholder="Wybierz godzinę" /></SelectTrigger>
+            <SelectContent>
+              {tutorId && lessonMode && duration && day &&
+  getAvailableSlots("weekly")
+    .sort((a, b) => {
+      const [ah, am] = (a || "").split(":").map(Number);
+      const [bh, bm] = (b || "").split(":").map(Number);
+      return ah * 60 + am - (bh * 60 + bm);
+    })
+    .map(s => (
+      <SelectItem key={s} value={s}>{s}</SelectItem>
+    ))
+}
+            </SelectContent>
+          </Select>
+
+          <Label>Przedmiot</Label>
+          <Select value={subject} onValueChange={setSubject}>
+            <SelectTrigger><SelectValue placeholder="Wybierz przedmiot" /></SelectTrigger>
+            <SelectContent>
+              {subjects.map(s => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Label>Czas trwania</Label>
+          <Select value={duration.toString()} onValueChange={(v) => setDuration(Number(v))}>
+            <SelectTrigger><SelectValue placeholder="Wybierz długość" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="60">60 minut</SelectItem>
+              <SelectItem value="90">90 minut</SelectItem>
+              <SelectItem value="120">120 minut</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
+            <>
+              <Label>Uczeń</Label>
+              <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz ucznia" /></SelectTrigger>
+                <SelectContent>
+                  {linkedChildren
+                    .sort((a, b) => a.firstName.localeCompare(b.firstName) || a.lastName.localeCompare(b.lastName))
+                    .map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          <Button onClick={() => handleBooking("weekly")}>Zarezerwuj lekcję</Button>
+        </CardContent>
+      </Card>
+
+      <Card className="w-full md:w-[calc(50%-0.75rem)]">
+        <CardHeader><CardTitle>Rezerwacja jednorazowa</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {(currentUser?.accountType === "admin") && (
+            <>
+              <Label>Korepetytor</Label>
+              <Select value={tutorId} onValueChange={setTutorId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
+                <SelectContent>
+                  {tutors.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          <Label>Tryb zajęć</Label>
+          <Select value={lessonMode} onValueChange={(v) => setLessonMode(v.toLowerCase())}>
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz tryb zajęć" />
+            </SelectTrigger>
+            <SelectContent>
+              {currentUser &&
+                (currentUser.accountType === "student" || currentUser.accountType === "parent" ? (
+                  <>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="u korepetytora">U korepetytora</SelectItem>
+                  </>
+                ) : null)}
+              {currentUser &&
+                (currentUser.accountType === "tutor" || currentUser.accountType === "admin" ? (
+                  <>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="u korepetytora">U korepetytora</SelectItem>
+                    <SelectItem value="z dojazdem do ucznia">Z dojazdem do ucznia</SelectItem>
+                  </>
+                ) : null)}
+            </SelectContent>
+          </Select>
+
+          <Label>Data</Label>
+          <Select value={specificDate} onValueChange={setSpecificDate}>
+            <SelectTrigger><SelectValue placeholder="Wybierz datę" /></SelectTrigger>
+            <SelectContent>
+          {getAvailableDates().map(date => (
+            <SelectItem key={date} value={date}>{formatPolishDate(date || "")}</SelectItem>
+          ))}
+            </SelectContent>
+          </Select>
+
+          <Label>Godzina</Label>
+          <Select value={time} onValueChange={setTime}>
+            <SelectTrigger><SelectValue placeholder="Wybierz godzinę" /></SelectTrigger>
+            <SelectContent>
+              {tutorId && lessonMode && duration && specificDate &&
+  getAvailableSlots("one-time")
+    .sort((a, b) => {
+      const [ah, am] = (a || "").split(":").map(Number);
+      const [bh, bm] = (b || "").split(":").map(Number);
+      return ah * 60 + am - (bh * 60 + bm);
+    })
+    .map(s => (
+      <SelectItem key={s} value={s}>{s}</SelectItem>
+    ))
+}
+            </SelectContent>
+          </Select>
+
+          <Label>Przedmiot</Label>
+          <Select value={subject} onValueChange={setSubject}>
+            <SelectTrigger><SelectValue placeholder="Wybierz przedmiot" /></SelectTrigger>
+            <SelectContent>
+              {subjects.map(s => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Label>Czas trwania</Label>
+          <Select value={duration.toString()} onValueChange={(v) => setDuration(Number(v))}>
+            <SelectTrigger><SelectValue placeholder="Wybierz długość" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="60">60 minut</SelectItem>
+              <SelectItem value="90">90 minut</SelectItem>
+              <SelectItem value="120">120 minut</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
+            <>
+              <Label>Uczeń</Label>
+              <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz ucznia" /></SelectTrigger>
+                <SelectContent>
+                  {linkedChildren
+                    .sort((a, b) => a.firstName.localeCompare(b.firstName) || a.lastName.localeCompare(b.lastName))
+                    .map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}</SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+{currentUser && currentUser.accountType && ["student", "parent", "tutor", "admin"].includes(currentUser.accountType) && (
+            <>
+              <Label>Odrobienie lekcji</Label>
+              <Select value={makeupForLessonId || ""} onValueChange={setMakeupForLessonId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz lekcję do odrobienia" /></SelectTrigger>
+                <SelectContent>
+                  {bookings
+  .filter(
+    b =>
+      ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "") &&
+      b.studentId ===
+        (currentUser?.accountType === "student"
+          ? currentUser?.id
+          : selectedChildId)
+  )
+  .sort(
+    (a, b) =>
+      new Date((a.fullDate || "") + "T" + (a.time || "00:00")).getTime() -
+      new Date((b.fullDate || "") + "T" + (b.time || "00:00")).getTime()
+  )
+  .map(b => (
+    <SelectItem key={b.id} value={b.id}>
+      {`${b.subject} - ${formatPolishDate(b.fullDate || "")} ${b.time ?? ""}`}
+    </SelectItem>
+  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          <Button onClick={() => handleBooking("one-time")}>Zarezerwuj lekcję</Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
