@@ -18,6 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pl">
+      <head>
+        <meta name="google-site-verification" content="UH8aYObvEClynXamDs_ymWeIoAkrqIefLJ-g9_mS5f8" />
+      </head>
       <body className={inter.className}>
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
           <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
