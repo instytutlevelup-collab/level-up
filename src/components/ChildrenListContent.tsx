@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { db, auth } from "@/lib/firebase"
 import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore"
-import { createUserWithEmailAndPassword } from "firebase/auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -61,12 +60,8 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
         setError("Musisz być zalogowany.")
         return
       }
-      const tempPassword = Math.random().toString(36).slice(-8)
-      const userCredential = await createUserWithEmailAndPassword(auth, newStudent.email, tempPassword)
-      const uid = userCredential.user.uid
 
-      await addDoc(collection(db, "users"), {
-        uid: uid,
+      const docRef = await addDoc(collection(db, "users"), {
         firstName: newStudent.firstName,
         lastName: newStudent.lastName,
         email: newStudent.email,
@@ -82,6 +77,8 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
         canBook: false,
         canCancel: false,
       })
+      const uid = docRef.id
+
       setStudents((prev) => [
         ...prev,
         {
