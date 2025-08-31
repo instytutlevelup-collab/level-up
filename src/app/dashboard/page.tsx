@@ -309,6 +309,22 @@ export default function DashboardPage() {
     }
   }
 
+  // --- DRAFT DELETE HANDLER ---
+  const handleDeleteDraft = async (id: string) => {
+    // Only admin or tutor can delete draft
+    if (
+      !currentUser ||
+      (currentUser.accountType !== 'admin' && currentUser.accountType !== 'tutor')
+    ) {
+      return
+    }
+    try {
+      await deleteDoc(doc(db, 'announcements', id))
+    } catch (err) {
+      console.error('Błąd usuwania wersji roboczej ogłoszenia:', err)
+    }
+  }
+
   // --- STATISTICS ---
   // Statusy: 'completed', 'cancelled', 'scheduled'
   // Pola "cancelledBy" i "cancelledLate" są już mapowane z kolekcji lessons
@@ -380,7 +396,9 @@ export default function DashboardPage() {
                 <div className="text-gray-500 italic">Brak ogłoszeń.</div>
               )}
               <ul className="space-y-4">
-                {announcements.map(a => (
+                {announcements
+                  .filter(a => a.status === 'published' || (a.status === 'draft' && a.authorId === currentUser.id))
+                  .map(a => (
                   <li
                     key={a.id}
                     className="border rounded p-3 bg-gray-50 flex justify-between items-start"
@@ -405,15 +423,24 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex flex-row gap-2">
                       {a.status === 'draft' && (currentUser.accountType === 'admin' || currentUser.accountType === 'tutor') && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handlePublishAnnouncement(a.id)}
-                        >
-                          Opublikuj
-                        </Button>
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handlePublishAnnouncement(a.id)}
+                          >
+                            Opublikuj
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteDraft(a.id)}
+                          >
+                            Usuń wersję roboczą
+                          </Button>
+                        </>
                       )}
-                      {currentUser.accountType === 'admin' && (
+                      {a.status === 'published' && currentUser.accountType === 'admin' && (
                         <Button
                           variant="destructive"
                           size="sm"
