@@ -352,7 +352,7 @@ export default function DashboardPage() {
     { name: 'Zrealizowana', value: lessonsWithCancel.filter(l => l.status === 'completed').length },
     { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_late').length },
     { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l =>
-        l.status === 'cancelled_in_time' || l.status === 'makeup' || l.status === 'makeup_used'
+        l.status === 'cancelled_in_time' || l.status === 'makeup_used'
       ).length },
   ]
   const pieData2 = [
