@@ -1,6 +1,20 @@
-import drive from './drive';
+import { google } from "googleapis";
 import fs from 'fs';
-import path from 'path';
+import path from "path";
+
+const KEYFILEPATH = path.join(
+  process.cwd(),
+  "src/lib/credentials/levelup-469612-5958da80342f.json"
+);
+
+const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
+
+const auth = new google.auth.GoogleAuth({
+  keyFile: KEYFILEPATH,
+  scopes: SCOPES,
+});
+
+const drive = google.drive({ version: "v3", auth });
 
 export const uploadFileToDrive = async (file: File) => {
   const buffer = await file.arrayBuffer();
