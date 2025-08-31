@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { db, auth } from "@/lib/firebase"
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore"
+import { doc, updateDoc, addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -36,6 +36,33 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
     classLevel: "",
     subjects: "",
   })
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!auth.currentUser) return
+      try {
+        const q = query(collection(db, "users"), where("parentId", "==", auth.currentUser.uid))
+        const querySnapshot = await getDocs(q)
+        const fetchedStudents: Student[] = []
+        querySnapshot.forEach((doc) => {
+          const data = doc.data()
+          fetchedStudents.push({
+            id: doc.id,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            studentName: data.studentName,
+            canCancel: data.canCancel,
+            canBook: data.canBook,
+          })
+        })
+        setStudents(fetchedStudents)
+      } catch (e) {
+        setError("Błąd podczas pobierania uczniów.")
+        console.error(e)
+      }
+    }
+    fetchStudents()
+  }, [])
 
   const handlePermissionToggle = async (student: Student, permission: "canCancel" | "canBook", value: boolean) => {
     try {
