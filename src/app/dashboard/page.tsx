@@ -103,92 +103,100 @@ export default function DashboardPage() {
       try {
         if (!currentUser) return
 
-        let q
         const bookingsCollection = collection(db, 'bookings')
+        let q
 
-        // Pobieranie dokumentów zależnie od roli użytkownika
         if (currentUser.accountType === 'student') {
           q = query(bookingsCollection, where('studentId', '==', currentUser.id))
+          const snapshot = await getDocs(q)
+          processAndSetLessons(snapshot)
         } else if (currentUser.accountType === 'parent') {
           const linkedIds = currentUser.linkedAccounts?.map(acc => acc.studentId) || []
-          if (linkedIds.length) {
+          if (linkedIds.length > 0) {
             // Firestore 'in' requires a non-empty array
             q = query(bookingsCollection, where('studentId', 'in', linkedIds))
+            const snapshot = await getDocs(q)
+            processAndSetLessons(snapshot)
           } else {
-            // gdy brak powiązanych dzieci, ustaw zapytanie które nie zwróci wyników
-            q = query(bookingsCollection, where('studentId', '==', '__no_match__'))
+            // No linked students: skip querying, set lessons to empty
+            setLessons([])
           }
         } else if (currentUser.accountType === 'tutor') {
           q = query(bookingsCollection, where('tutorId', '==', currentUser.id))
+          const snapshot = await getDocs(q)
+          processAndSetLessons(snapshot)
         } else {
           // admin i inni widzą wszystkie
           q = bookingsCollection
+          const snapshot = await getDocs(q)
+          processAndSetLessons(snapshot)
         }
-
-        const snapshot = await getDocs(q)
-        // debug: ile dokumentów pobrano
-        console.debug('bookings snapshot size:', snapshot.size)
-
-        const fetchedLessons = snapshot.docs.map(docSnap => {
-          const data = docSnap.data() || {}
-          const rawStatus = (data.status || '').toString()
-          const rs = rawStatus.toLowerCase()
-
-          // Normalizacja statusów do pełnego zakresu Lesson["status"]
-          let status: Lesson["status"] = 'scheduled'
-
-          if (['completed', 'realized', 'zrealizowane', 'done'].includes(rs)) {
-            status = 'completed'
-          } else if (['cancelled_late', 'late', 'po_terminie'].some(x => rs.includes(x))) {
-            status = 'cancelled_late'
-          } else if (['cancelled_in_time', 'cancel_in', 'odwo', 'makeup', 'makeup_used', 'cancelled_by_tutor'].some(x => rs.includes(x))) {
-            // Rozróżniamy subtelniejsze typy odwołań
-            if (['makeup', 'makeup_used'].some(x => rs.includes(x))) {
-              status = rs.includes('makeup_used') ? 'makeup_used' : 'makeup'
-            } else if (['cancelled_by_tutor'].some(x => rs.includes(x))) {
-              status = 'cancelled_by_tutor'
-            } else {
-              status = 'cancelled_in_time'
-            }
-          } else {
-            status = 'scheduled'
-          }
-
-          // Jeśli pole cancelledLate jest zapisane, użyj go; jeśli nie, spróbuj wywnioskować z nazwy statusu
-          const cancelledLate = typeof data.cancelledLate !== 'undefined'
-            ? !!data.cancelledLate
-            : (rs.includes('late') || rs.includes('po_terminie') || rs.includes('after') || rs.includes('late'))
-
-          const cancelledBy = data.cancelledByRole || data.cancelledBy || data.cancelledBy || undefined
-
-          return {
-            id: docSnap.id,
-            studentId: data.studentId,
-            studentName: data.studentName || `${data.studentFirstName || ''} ${data.studentLastName || ''}`.trim(),
-            tutorId: data.tutorId,
-            tutorName: data.tutorName,
-            subject: data.subject,
-            date: data.fullDate || data.date || '',
-            fullDate: data.fullDate || data.date || '',
-            time: data.time || data.startTime || '',
-            status,
-            grade: data.grade,
-            notes: data.notes,
-            // dodatkowe pola potrzebne w statystykach
-            cancelledBy,
-            cancelledLate,
-            rawStatus,
-          } as Lesson & { cancelledBy?: 'student' | 'parent' | 'tutor', cancelledLate?: boolean }
-        })
-
-        console.debug('fetchedLessons sample:', fetchedLessons.slice(0, 6))
-        setLessons(fetchedLessons)
       } catch (error) {
         console.error('Błąd podczas pobierania bookingów:', error)
       } finally {
         setIsLoading(false)
       }
     }
+
+    // Helper for mapping lessons and setting state
+    function processAndSetLessons(snapshot: any) {
+      // debug: ile dokumentów pobrano
+      console.debug('bookings snapshot size:', snapshot.size)
+      const fetchedLessons = snapshot.docs.map((docSnap: any) => {
+        const data = docSnap.data() || {}
+        const rawStatus = (data.status || '').toString()
+        const rs = rawStatus.toLowerCase()
+
+        // Normalizacja statusów do pełnego zakresu Lesson["status"]
+        let status: Lesson["status"] = 'scheduled'
+
+        if (['completed', 'realized', 'zrealizowane', 'done'].includes(rs)) {
+          status = 'completed'
+        } else if (['cancelled_late', 'late', 'po_terminie'].some(x => rs.includes(x))) {
+          status = 'cancelled_late'
+        } else if (['cancelled_in_time', 'cancel_in', 'odwo', 'makeup', 'makeup_used', 'cancelled_by_tutor'].some(x => rs.includes(x))) {
+          // Rozróżniamy subtelniejsze typy odwołań
+          if (['makeup', 'makeup_used'].some(x => rs.includes(x))) {
+            status = rs.includes('makeup_used') ? 'makeup_used' : 'makeup'
+          } else if (['cancelled_by_tutor'].some(x => rs.includes(x))) {
+            status = 'cancelled_by_tutor'
+          } else {
+            status = 'cancelled_in_time'
+          }
+        } else {
+          status = 'scheduled'
+        }
+
+        // Jeśli pole cancelledLate jest zapisane, użyj go; jeśli nie, spróbuj wywnioskować z nazwy statusu
+        const cancelledLate = typeof data.cancelledLate !== 'undefined'
+          ? !!data.cancelledLate
+          : (rs.includes('late') || rs.includes('po_terminie') || rs.includes('after') || rs.includes('late'))
+
+        const cancelledBy = data.cancelledByRole || data.cancelledBy || data.cancelledBy || undefined
+
+        return {
+          id: docSnap.id,
+          studentId: data.studentId,
+          studentName: data.studentName || `${data.studentFirstName || ''} ${data.studentLastName || ''}`.trim(),
+          tutorId: data.tutorId,
+          tutorName: data.tutorName,
+          subject: data.subject,
+          date: data.fullDate || data.date || '',
+          fullDate: data.fullDate || data.date || '',
+          time: data.time || data.startTime || '',
+          status,
+          grade: data.grade,
+          notes: data.notes,
+          // dodatkowe pola potrzebne w statystykach
+          cancelledBy,
+          cancelledLate,
+          rawStatus,
+        } as Lesson & { cancelledBy?: 'student' | 'parent' | 'tutor', cancelledLate?: boolean }
+      })
+      console.debug('fetchedLessons sample:', fetchedLessons.slice(0, 6))
+      setLessons(fetchedLessons)
+    }
+
     fetchLessons()
   }, [currentUser])
 
