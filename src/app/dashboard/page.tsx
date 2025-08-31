@@ -36,7 +36,7 @@ interface Lesson {
   date: string
   fullDate?: string
   time: string
-  status: 'scheduled' | 'completed' | 'cancelled'
+  status: "scheduled" | "completed" | "cancelled" | "cancelled_in_time" | "cancelled_late" | "cancelled_by_tutor" | "makeup" | "makeup_used"
   grade?: number
   notes?: string
   rawStatus?: string
@@ -340,8 +340,8 @@ export default function DashboardPage() {
   // Pie chart: dwa zestawy danych
   const pieData1 = [
     { name: 'Zrealizowana', value: lessonsWithCancel.filter(l => l.status === 'completed').length },
-    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled' && l.cancelledLate).length },
-    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled' && !l.cancelledLate).length },
+    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_late' && l.cancelledLate).length },
+    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_in_time' && !l.cancelledLate).length },
   ]
   const pieData2 = [
     { name: 'Wybrano nowy termin', value: lessonsWithCancel.filter(l => l.rawStatus === 'makeup_used').length },
