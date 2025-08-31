@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { db, auth } from '@/lib/firebase'
-import { doc, collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { doc, collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Button } from '@/components/ui/button'
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts'
@@ -50,6 +50,7 @@ interface Announcement {
   authorName: string
   authorId: string
   createdAt?: { seconds: number; nanoseconds: number }
+  status: 'draft' | 'published'
 }
 
 export default function DashboardPage() {
@@ -61,6 +62,7 @@ export default function DashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [newAnnouncement, setNewAnnouncement] = useState('')
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   useEffect(() => {
   const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -249,7 +251,7 @@ export default function DashboardPage() {
   }
 
   // --- ANNOUNCEMENTS HANDLER ---
-  const handleAddAnnouncement = async (e: React.FormEvent) => {
+  const handleAddAnnouncement = async (e: React.FormEvent, status: 'published') => {
     e.preventDefault()
     if (!newAnnouncement.trim() || !currentUser) return
     setIsAddingAnnouncement(true)
@@ -259,12 +261,41 @@ export default function DashboardPage() {
         authorName: `${currentUser.firstName} ${currentUser.lastName}`,
         authorId: currentUser.id,
         createdAt: serverTimestamp(),
+        status: status
       })
       setNewAnnouncement('')
     } catch (err) {
       console.error('Błąd dodawania ogłoszenia:', err)
     } finally {
       setIsAddingAnnouncement(false)
+    }
+  }
+
+  const handleSaveDraft = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newAnnouncement.trim() || !currentUser) return
+    setIsSavingDraft(true)
+    try {
+      await addDoc(collection(db, 'announcements'), {
+        text: newAnnouncement.trim(),
+        authorName: `${currentUser.firstName} ${currentUser.lastName}`,
+        authorId: currentUser.id,
+        createdAt: serverTimestamp(),
+        status: 'draft'
+      })
+      setNewAnnouncement('')
+    } catch (err) {
+      console.error('Błąd zapisu wersji roboczej:', err)
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
+  const handlePublishAnnouncement = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'announcements', id), { status: 'published' })
+    } catch (err) {
+      console.error('Błąd publikacji ogłoszenia:', err)
     }
   }
 
@@ -318,7 +349,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {(currentUser.accountType === 'tutor' || currentUser.accountType === 'admin') && (
-              <form onSubmit={handleAddAnnouncement} className="mb-6 flex flex-col gap-2">
+              <form
+                onSubmit={e => handleAddAnnouncement(e, 'published')}
+                className="mb-6 flex flex-col gap-2"
+              >
                 <textarea
                   value={newAnnouncement}
                   onChange={e => setNewAnnouncement(e.target.value)}
@@ -327,9 +361,18 @@ export default function DashboardPage() {
                   required
                   disabled={isAddingAnnouncement}
                 />
-                <Button type="submit" disabled={isAddingAnnouncement || !newAnnouncement.trim()}>
-                  {isAddingAnnouncement ? 'Dodawanie...' : 'Dodaj ogłoszenie'}
-                </Button>
+                <div className="flex flex-row gap-2">
+                  <Button type="submit" disabled={isAddingAnnouncement || !newAnnouncement.trim()}>
+                    {isAddingAnnouncement ? 'Dodawanie...' : 'Dodaj ogłoszenie'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={isSavingDraft || !newAnnouncement.trim()}
+                  >
+                    {isSavingDraft ? 'Zapisywanie...' : 'Zapisz jako wersję roboczą'}
+                  </Button>
+                </div>
               </form>
             )}
             <div>
@@ -343,7 +386,12 @@ export default function DashboardPage() {
                     className="border rounded p-3 bg-gray-50 flex justify-between items-start"
                   >
                     <div>
-                      <div className="mb-1">{a.text}</div>
+                      <div className="mb-1">
+                        {a.text}{' '}
+                        {a.status === 'draft' && (
+                          <span className="ml-2 text-xs font-semibold text-orange-500">(Wersja robocza)</span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 flex flex-row gap-2">
                         <span>Autor: {a.authorName}</span>
                         {a.createdAt && (
@@ -355,15 +403,26 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
-                    {currentUser.accountType === 'admin' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteAnnouncement(a.id)}
-                      >
-                        Usuń
-                      </Button>
-                    )}
+                    <div className="flex flex-row gap-2">
+                      {a.status === 'draft' && (currentUser.accountType === 'admin' || currentUser.accountType === 'tutor') && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handlePublishAnnouncement(a.id)}
+                        >
+                          Opublikuj
+                        </Button>
+                      )}
+                      {currentUser.accountType === 'admin' && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteAnnouncement(a.id)}
+                        >
+                          Usuń
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
