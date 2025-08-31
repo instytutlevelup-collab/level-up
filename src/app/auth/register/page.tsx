@@ -54,6 +54,7 @@ export default function RegisterPage() {
         }),
         acceptedTerms: true,
         acceptedTermsAt: new Date().toISOString(),
+        acceptedPrivacyAt: new Date().toISOString(),
       })
 
       router.push("/auth/login")
@@ -189,6 +190,10 @@ export default function RegisterPage() {
               Akceptuję{" "}
               <a href="/terms" target="_blank" className="underline text-blue-600">
                 regulamin
+              </a>{" "}
+              oraz{" "}
+              <a href="/privacy" target="_blank" className="underline text-blue-600">
+                politykę prywatności i RODO
               </a>
             </label>
           </div>
