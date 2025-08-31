@@ -760,19 +760,19 @@ useEffect(() => {
       <Card className="w-full md:w-[calc(50%-0.75rem)]">
         <CardHeader><CardTitle>Rezerwacja jednorazowa</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {(currentUser?.accountType === "admin") && (
-            <>
-              <Label>Korepetytor</Label>
-              <Select value={tutorId} onValueChange={setTutorId}>
-                <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
-                <SelectContent>
-                  {tutors.map(t => (
-                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
+          {(currentUser?.accountType === "admin" || currentUser?.accountType === "parent" || currentUser?.accountType === "student") && (
+  <>
+    <Label>Korepetytor</Label>
+    <Select value={tutorId} onValueChange={setTutorId}>
+      <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
+      <SelectContent>
+        {tutors.map(t => (
+          <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </>
+)}
 
           <Label>Tryb zajęć</Label>
           <Select value={lessonMode} onValueChange={(v) => setLessonMode(v.toLowerCase())}>
