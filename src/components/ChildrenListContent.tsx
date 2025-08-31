@@ -104,6 +104,20 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
     }
   }
 
+  // Opcje klas w zależności od szkoły
+  const getClassOptions = () => {
+    switch (newStudent.school) {
+      case "szkoła podstawowa":
+        return Array.from({ length: 8 }, (_, i) => `klasa ${i + 1}`)
+      case "liceum":
+        return Array.from({ length: 4 }, (_, i) => `klasa ${i + 1}`)
+      case "technikum":
+        return Array.from({ length: 5 }, (_, i) => `klasa ${i + 1}`)
+      default:
+        return []
+    }
+  }
+
   return (
     <div className="w-full">
       <Card className="w-full">
@@ -264,23 +278,37 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
                 </div>
                 <div>
                   <Label htmlFor="school">Szkoła</Label>
-                  <input
+                  <select
                     id="school"
-                    type="text"
                     className="block w-full border rounded px-2 py-1 mt-1"
                     value={newStudent.school}
-                    onChange={(e) => setNewStudent((prev) => ({ ...prev, school: e.target.value }))}
-                  />
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, school: e.target.value, classLevel: "" }))}
+                  >
+                    <option value="">Wybierz szkołę</option>
+                    <option value="szkoła podstawowa">szkoła podstawowa</option>
+                    <option value="liceum">liceum</option>
+                    <option value="technikum">technikum</option>
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor="classLevel">Klasa</Label>
-                  <input
+                  <select
                     id="classLevel"
-                    type="text"
                     className="block w-full border rounded px-2 py-1 mt-1"
                     value={newStudent.classLevel}
                     onChange={(e) => setNewStudent((prev) => ({ ...prev, classLevel: e.target.value }))}
-                  />
+                    disabled={!newStudent.school}
+                  >
+                    {!newStudent.school ? (
+                      <option value="">Wybierz szkołę</option>
+                    ) : (
+                      getClassOptions().map((cls) => (
+                        <option key={cls} value={cls}>
+                          {cls}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor="subjects">Przedmioty (oddziel przecinkami)</Label>
