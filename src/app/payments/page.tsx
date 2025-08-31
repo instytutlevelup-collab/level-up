@@ -17,6 +17,7 @@ interface MonthlySettlement {
   paidHours: number
   completedHours: number
   balance: number
+  carriedOverHours?: number
   paymentDate?: string
   notes?: string
   studentId?: string
@@ -64,6 +65,7 @@ export default function PaymentsPage() {
   const [plannedHours, setPlannedHours] = useState<number>(0);
   const [completedHours, setCompletedHours] = useState<number>(0);
   const [balance, setBalance] = useState<number>(0);
+  const [carriedOverHours, setCarriedOverHours] = useState<number>(0);
   const [paymentDate, setPaymentDate] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   // For editing settlements
@@ -128,6 +130,7 @@ export default function PaymentsPage() {
         totalHoursToPay: Number(d.totalHoursToPay) || 0,
         paidHours: Number(d.paidHours) || 0,
         balance: Number(d.balance) || 0,
+        carriedOverHours: d.carriedOverHours !== undefined ? Number(d.carriedOverHours) : 0,
       } as MonthlySettlement
     })
     // Filter unique by studentId and month
@@ -177,6 +180,7 @@ export default function PaymentsPage() {
           totalHoursToPay: Number(d.totalHoursToPay) || 0,
           paidHours: Number(d.paidHours) || 0,
           balance: Number(d.balance) || 0,
+          carriedOverHours: d.carriedOverHours !== undefined ? Number(d.carriedOverHours) : 0,
           studentName,
         } as MonthlySettlement
       })
@@ -218,6 +222,7 @@ export default function PaymentsPage() {
         totalHoursToPay: 0,
         paidHours: 0,
         balance: balance,
+        carriedOverHours: carriedOverHours,
         notes: notes,
         createdAt: new Date().toISOString(),
         createdBy: currentUser?.id || ''
@@ -230,6 +235,7 @@ export default function PaymentsPage() {
       setPlannedHours(0);
       setCompletedHours(0);
       setBalance(0);
+      setCarriedOverHours(0);
       setPaymentDate('');
       setNotes('');
       // odśwież dane
@@ -344,7 +350,7 @@ export default function PaymentsPage() {
             </div>
             <div className="mb-4">
               <Label>Godziny przełożone na kolejny miesiąc</Label>
-              <Input type="number" value={balance} onChange={e => setBalance(Number(e.target.value))} />
+              <Input type="number" value={carriedOverHours} onChange={e => setCarriedOverHours(Number(e.target.value))} />
             </div>
             <div className="mb-4">
               <Label>Data płatności</Label>
@@ -372,7 +378,7 @@ export default function PaymentsPage() {
                         <summary>Szczegóły</summary>
                         <div className="mt-2 space-y-2">
                           <div>
-                            <Label>Ilość planowanych godzin</Label>
+                            <Label>Zaplanowane godziny </Label>
                             <Input
                               type="number"
                               value={edit.plannedHours !== undefined ? edit.plannedHours : settlement.plannedHours || 0}
@@ -382,7 +388,7 @@ export default function PaymentsPage() {
                             />
                           </div>
                           <div>
-                            <Label>Ilość zrealizowanych godzin</Label>
+                            <Label>Dodatkowe godziny</Label>
                             <Input
                               type="number"
                               value={edit.completedHours !== undefined ? edit.completedHours : settlement.completedHours || 0}
@@ -392,7 +398,17 @@ export default function PaymentsPage() {
                             />
                           </div>
                           <div>
-                            <Label>Do zwrotu (+)/do zapłaty (-)</Label>
+                          <div>
+                            <Label>Godziny przełożone na kolejny miesiąc</Label>
+                            <Input
+                              type="number"
+                              value={edit.carriedOverHours !== undefined ? edit.carriedOverHours : settlement.carriedOverHours || 0}
+                              onChange={e =>
+                                handleEditSettlementField(settlement.id || '', 'carriedOverHours', Number(e.target.value))
+                              }
+                            />
+                          </div>
+                            <Label>Anulowane godziny</Label>
                             <Input
                               type="number"
                               value={edit.balance !== undefined ? edit.balance : settlement.balance || 0}
@@ -443,6 +459,9 @@ export default function PaymentsPage() {
                               if (edit.balance !== undefined && edit.balance !== (settlement.balance ?? 0)) {
                                 updatedFields.balance = edit.balance;
                               }
+                              if (edit.carriedOverHours !== undefined && edit.carriedOverHours !== (settlement.carriedOverHours ?? 0)) {
+                                updatedFields.carriedOverHours = edit.carriedOverHours;
+                              }
                               if (typeof edit.paymentDate === 'string' && edit.paymentDate !== (settlement.paymentDate ?? '')) {
                                 updatedFields.paymentDate = edit.paymentDate;
                               }
@@ -485,9 +504,10 @@ export default function PaymentsPage() {
                       <details>
                         <summary>Szczegóły</summary>
                         <div className="mt-2 space-y-1">
-                          <p>Ilość planowanych godzin: {settlement.plannedHours}</p>
-                          <p>Ilość zrealizowanych godzin: {settlement.completedHours}</p>
-                          <p>Do zwrotu (+)/do zapłaty (-): {settlement.balance}</p>
+                          <p>Zaplanowane godziny: {settlement.plannedHours}</p>
+                          <p>Dodatkowe godziny: {settlement.completedHours}</p>
+                          <p>Anulowane godziny: {settlement.balance}</p>
+                          <p>Godziny przełożone na kolejny miesiąc: {settlement.carriedOverHours ?? 0}</p>
                           {settlement.paymentDate && <p>Data płatności: {settlement.paymentDate}</p>}
                           {settlement.notes && <p>Komentarze: {settlement.notes}</p>}
                         </div>
@@ -521,9 +541,10 @@ export default function PaymentsPage() {
                             <details>
                               <summary>Szczegóły</summary>
                               <div className="mt-2 space-y-1">
-                                <p>Ilość planowanych godzin: {settlement.plannedHours}</p>
-                                <p>Ilość zrealizowanych godzin: {settlement.completedHours}</p>
-                                <p>Do rozliczenia: {settlement.balance}</p>
+                                <p>Zaplanowane godziny: {settlement.plannedHours}</p>
+                                <p>Dodatkowe godziny: {settlement.completedHours}</p>
+                                <p>Anulowane godziny: {settlement.balance}</p>
+                                <p>Godziny przełożone na kolejny miesiąc: {settlement.carriedOverHours ?? 0}</p>
                                 {settlement.paymentDate && <p>Data płatności: {settlement.paymentDate}</p>}
                                 {settlement.notes && <p>Komentarze: {settlement.notes}</p>}
                               </div>
@@ -536,16 +557,17 @@ export default function PaymentsPage() {
                 })}
                 {/* Łączne podsumowanie per miesiąc dla wszystkich dzieci */}
                 {(() => {
-                  // Build monthly summary for all settlements using only planned, completed, balance
-                  const monthlySummary: Record<string, { planned: number; completed: number; balance: number }> = {};
+                  // Build monthly summary for all settlements using planned, completed, balance, carriedOverHours
+                  const monthlySummary: Record<string, { planned: number; completed: number; balance: number; carriedOverHours: number }> = {};
                   settlements.forEach(s => {
                     if (!s.month) return;
                     if (!monthlySummary[s.month]) {
-                      monthlySummary[s.month] = { planned: 0, completed: 0, balance: 0 };
+                      monthlySummary[s.month] = { planned: 0, completed: 0, balance: 0, carriedOverHours: 0 };
                     }
                     monthlySummary[s.month].planned += Number(s.plannedHours) || 0;
                     monthlySummary[s.month].completed += Number(s.completedHours) || 0;
                     monthlySummary[s.month].balance += Number(s.balance) || 0;
+                    monthlySummary[s.month].carriedOverHours += Number(s.carriedOverHours) || 0;
                   });
                   // Sort months descending
                   const sortedMonths = Object.keys(monthlySummary).sort((a, b) => b.localeCompare(a));
@@ -559,9 +581,10 @@ export default function PaymentsPage() {
                             <CardTitle>{month}</CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-1">
-                            <p>Ilość planowanych godzin: {monthlySummary[month].planned}</p>
-                            <p>Ilość zrealizowanych godzin: {monthlySummary[month].completed}</p>
-                            <p>Do zwrotu (+)/do zapłaty (-): {monthlySummary[month].balance}</p>
+                            <p>Zaplanowane godziny: {monthlySummary[month].planned}</p>
+                            <p>Dodatkowe godziny: {monthlySummary[month].completed}</p>
+                            <p>Anulowane godziny: {monthlySummary[month].balance}</p>
+                            <p>Godziny przełożone na kolejny miesiąc: {monthlySummary[month].carriedOverHours}</p>
                           </CardContent>
                         </Card>
                       ))}
