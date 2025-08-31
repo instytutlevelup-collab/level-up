@@ -71,6 +71,7 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
         acceptedTerms: true,
         acceptedTermsAt: new Date().toISOString(),
         parentId: auth.currentUser.uid,
+        parentEmail: auth.currentUser.email,
         createdAt: serverTimestamp(),
         canBook: false,
         canCancel: false,
