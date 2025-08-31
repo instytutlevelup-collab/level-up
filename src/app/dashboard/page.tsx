@@ -134,12 +134,22 @@ export default function DashboardPage() {
           const rawStatus = (data.status || '').toString()
           const rs = rawStatus.toLowerCase()
 
-          // Normalizacja statusów (dostosuj jeśli masz inne nazwy statusów w Firestore)
-          let status: 'scheduled' | 'completed' | 'cancelled' = 'scheduled'
-          if (rs === 'completed' || rs === 'realized' || rs === 'zrealizowane' || rs === 'done') {
+          // Normalizacja statusów do pełnego zakresu Lesson["status"]
+          let status: Lesson["status"] = 'scheduled'
+
+          if (['completed', 'realized', 'zrealizowane', 'done'].includes(rs)) {
             status = 'completed'
-          } else if (rs.includes('cancel') || rs.includes('odwo') || rs.includes('cancelled') || rs.includes('cancel_in') || rs.includes('cancel_in_time') || rs.includes('cancelled_in_time')) {
-            status = 'cancelled'
+          } else if (['cancelled_late', 'late', 'po_terminie'].some(x => rs.includes(x))) {
+            status = 'cancelled_late'
+          } else if (['cancelled_in_time', 'cancel_in', 'odwo', 'makeup', 'makeup_used', 'cancelled_by_tutor'].some(x => rs.includes(x))) {
+            // Rozróżniamy subtelniejsze typy odwołań
+            if (['makeup', 'makeup_used'].some(x => rs.includes(x))) {
+              status = rs.includes('makeup_used') ? 'makeup_used' : 'makeup'
+            } else if (['cancelled_by_tutor'].some(x => rs.includes(x))) {
+              status = 'cancelled_by_tutor'
+            } else {
+              status = 'cancelled_in_time'
+            }
           } else {
             status = 'scheduled'
           }
@@ -340,8 +350,10 @@ export default function DashboardPage() {
   // Pie chart: dwa zestawy danych
   const pieData1 = [
     { name: 'Zrealizowana', value: lessonsWithCancel.filter(l => l.status === 'completed').length },
-    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_late' && l.cancelledLate).length },
-    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_in_time' && !l.cancelledLate).length },
+    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_late').length },
+    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l =>
+        l.status === 'cancelled_in_time' || l.status === 'makeup' || l.status === 'makeup_used'
+      ).length },
   ]
   const pieData2 = [
     { name: 'Wybrano nowy termin', value: lessonsWithCancel.filter(l => l.rawStatus === 'makeup_used').length },
