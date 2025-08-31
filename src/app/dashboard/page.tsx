@@ -211,18 +211,18 @@ export default function DashboardPage() {
   }
   // --- STUDENTS ---
   const getStudentOptions = useCallback(() => {
-    if (!currentUser) return []
-    if (['tutor', 'admin', 'parent', 'student'].includes(currentUser.accountType)) {
-      const students = Array.from(
-        new Map(
-          lessons.map((l) => [l.studentId, { id: l.studentId, name: l.studentName }])
-        ).values()
-      )
-      students.sort((a, b) => a.name.localeCompare(b.name))
-      return students
-    }
-    return []
-  }, [currentUser, lessons])
+  if (!currentUser) return []
+  if (currentUser.accountType === 'tutor' || currentUser.accountType === 'admin') {
+    const students = Array.from(
+      new Map(
+        lessons.map((l) => [l.studentId, { id: l.studentId, name: l.studentName }])
+      ).values()
+    )
+    students.sort((a, b) => a.name.localeCompare(b.name))
+    return students
+  }
+  return []
+}, [currentUser, lessons])
 
   const monthOptions = useMemo(() => getMonthOptions(lessons), [lessons])
   const studentOptions = useMemo(() => getStudentOptions(), [getStudentOptions])
