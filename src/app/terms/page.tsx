@@ -2,44 +2,112 @@
 
 export default function TermsPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
-      <h1 className="text-3xl font-bold mb-6">Regulamin</h1>
-      
-      <section>
-        <h2 className="text-xl font-semibold mb-2">POSTANOWIENIA OGÓLNE</h2>
-        <ol className="list-decimal list-inside space-y-1 text-gray-700">
-          <li>Zapisu na korepetycje osób niepełnoletnich dokonuje Rodzic lub Opiekun prawny poprzez platformę Instytut Wiedzy Level Up!, kontakt telefoniczny lub za pośrednictwem platformy Messenger.</li>
-          <li>Podjęcie współpracy jest równoznaczne z akceptacją niniejszego regulaminu przez wszystkie strony. Nieprzestrzeganie regulaminu może skutkować skreśleniem Ucznia z listy.</li>
-          <li>W każdym semestrze obowiązuje nowa rezerwacja terminu.</li>
-          <li>Zajęcia odbywają się w formie indywidualnej lub grupowej w formie stacjonarnej, zdalnej lub hybrydowej. Czas trwania lekcji wynosi: 60, 90 lub 120 minut, w zależności od wcześniejszego ustalenia.</li>
-          <li>W razie przeziębienia dziecka konieczne jest powiadomienie korepetytora. Zajęcia odbywają się wówczas online.</li>
-          <li>Korepetytor zastrzega sobie prawo do zmiany ustalonego na stałe terminu, jeżeli będzie on kolidował z wykładami Korepetytora.</li>
-          <li>Rodzic lub Opiekun, zapisując dziecko na korepetycje zobowiązuje się dopilnować, aby uczęszczało ono na zajęcia w ustalonym wcześniej terminie przez obie strony (Korepetytora oraz Rodzica lub Opiekuna).</li>
-          <li>Podczas zajęć Uczeń zobowiązany jest posiadać własne przybory.</li>
-          <li>Uczeń i Korepetytor powinni punktualnie stawiać się na lekcje. W przypadku spóźnienia Ucznia, lekcja nie ulega przedłużeniu a opłata należna za lekcję nie ulega zmianie. W przypadku opóźnienia w rozpoczęciu zajęć z powodów leżących po stronie Korepetytora, zajęcia ulegają wydłużeniu o czas spóźnienia bądź ustala się inny termin, dogodny dla obu stron, kiedy spóźnienie można odrobić.</li>
-          <li>Korepetytor nie odpowiada za Ucznia po zakończonej lekcji oraz przed jej rozpoczęciem.</li>
-          <li>Rodzic lub Opiekun ma prawo do udzielenia pisemnej zgody na bezpośredni kontakt Ucznia z Korepetytorem w celu ustalenia, zmiany oraz odwołania terminów zajęć.</li>
+    <div className="max-w-3xl mx-auto p-6 text-gray-800">
+      <h1 className="text-2xl font-bold mb-6 text-center">
+        Regulamin zajęć dydaktycznych
+      </h1>
+
+      <section className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">§1. Postanowienia ogólne</h2>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>
+            Zapisu na zajęcia osób niepełnoletnich dokonuje Rodzic/Opiekun prawny poprzez
+            platformę <strong>Instytut Wiedzy Level Up!</strong>, kontakt telefoniczny lub komunikator Messenger.
+          </li>
+          <li>Podjęcie współpracy jest równoznaczne z akceptacją niniejszego Regulaminu.</li>
+          <li>Rażące naruszenie postanowień Regulaminu może skutkować zakończeniem współpracy.</li>
+          <li>
+            Terminy zajęć należy rezerwować w trzech okresach: wrzesień, od października do ferii zimowych oraz
+            od ferii zimowych do końca roku szkolnego.
+          </li>
+          <li>
+            Zajęcia mogą odbywać się:
+            <ul className="list-disc list-inside ml-6">
+              <li>indywidualnie lub grupowo,</li>
+              <li>stacjonarnie, online lub w formie hybrydowej.</li>
+            </ul>
+          </li>
+          <li>Czas trwania lekcji ustalany jest indywidualnie i wynosi 60, 90 lub 120 minut.</li>
         </ol>
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-2">ODWOŁANIE ZAJĘĆ</h2>
-        <ol className="list-decimal list-inside space-y-1 text-gray-700">
-          <li>Rodzic lub Opiekun jest zobowiązany powiadomić Korepetytora o nieobecności Ucznia co najmniej 24 godziny przed planowanymi zajęciami. Lekcje odwołuje się poprzez patformę Instytut Wiedzy Level Up!, kontakt telefoniczny lub za pośrednictwem platformy Messenger.</li>
-          <li>Jeżeli Rodzic lub Opiekun nie powiadomi Korepetytora o nieobecności dziecka 24 godziny przed zajęciami, lekcję uważa się za zrealizowaną i pobierana jest za nią pełna opłata.</li>
-          <li>Zajęcia odwołane z co najmniej 24 godzinnym wyprzedzeniem można odrobić w innym dogodnym terminie ustalonym przez obie strony. W przeciwnym razie Rodzic lub Opiekun zobowiązany jest do uiszczenia opłaty za kolejny miesiąc, pomniejszonej o ilość nieodrobionych lekcji.</li>
-          <li>Korepetytor zobowiązuje się powiadomić Rodzica lub Opiekuna Ucznia o ewentualnych sytuacjach wyjątkowych, w których odbycie się zajęć jest niemożliwe oraz zaproponować termin zastępczy.</li>
+      <section className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">§2. Organizacja zajęć</h2>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>
+            W przypadku choroby Ucznia Rodzic/Opiekun zobowiązany jest poinformować Korepetytora.
+            Wówczas zajęcia odbywają się w formie online.
+          </li>
+          <li>
+            Korepetytor zastrzega sobie prawo do zmiany stałego terminu zajęć, jeśli będzie on
+            kolidował z jego obowiązkami dydaktycznymi.
+          </li>
+          <li>
+            Rodzic/Opiekun, zapisując dziecko na zajęcia, zobowiązuje się dopilnować obecności
+            Ucznia w ustalonym terminie.
+          </li>
+          <li>
+            Uczeń powinien posiadać własne przybory (m.in. zeszyt, długopis, kalkulator — jeśli wymagany).
+          </li>
+          <li>
+            Uczeń i Korepetytor zobowiązani są do punktualności:
+            <ul className="list-disc list-inside ml-6">
+              <li>Spóźnienie Ucznia nie powoduje wydłużenia zajęć ani zmniejszenia opłaty.</li>
+              <li>W przypadku spóźnienia Korepetytora lekcja zostaje odpowiednio wydłużona lub odrobiona w innym terminie.</li>
+            </ul>
+          </li>
+          <li>Odpowiedzialność Korepetytora ogranicza się wyłącznie do czasu trwania zajęć.</li>
+          <li>
+            Rodzic/Opiekun może wyrazić zgodę na bezpośredni kontakt Ucznia z Korepetytorem
+            w sprawach ustaleń terminów. Zgoda ta może być udzielona w formie pisemnej
+            albo poprzez samodzielne nadanie Uczniowi odpowiednich uprawnień na platformie
+            <strong> Instytut Wiedzy Level Up!</strong>.
+          </li>
         </ol>
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-2">PŁATNOŚĆ</h2>
-        <ol className="list-decimal list-inside space-y-1 text-gray-700">
-          <li>Obowiązuje regulowanie zobowiązań przedpłatą za zajęcia w całym miesiącu przed pierwszymi zajęciami każdego miesiąca.</li>
-          <li>W przypadku nieuiszczenia opłaty Korepetytor ma prawo nie wpuścić Ucznia na zajęcia, na które został zapisany.</li>
-          <li>Korepetytor zastrzega sobie prawo do zmian cennika w dowolnej chwili i o tym fakcie każdorazowo poinformuje Rodzica lub Opiekuna Ucznia.</li>
+      <section className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">§3. Odwołanie zajęć</h2>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>
+            Rodzic/Opiekun zobowiązany jest powiadomić Korepetytora o nieobecności Ucznia co najmniej 24 godziny przed zajęciami.
+          </li>
+          <li>
+            Odwołania można dokonać poprzez platformę <strong>Instytut Wiedzy Level Up!</strong>, telefonicznie lub za pośrednictwem Messengera.
+          </li>
+          <li>
+            Zajęcia odwołane z zachowaniem 24-godzinnego terminu mogą zostać odrobione w innym, wspólnie ustalonym czasie.
+          </li>
+          <li>
+            W przypadku braku powiadomienia w wymaganym terminie zajęcia uznaje się za zrealizowane,
+            a opłata za nie nie podlega zwrotowi.
+          </li>
+          <li>
+            Korepetytor zobowiązuje się poinformować Rodzica/Opiekuna o sytuacjach wyjątkowych
+            uniemożliwiających przeprowadzenie zajęć i zaproponować termin zastępczy.
+          </li>
+        </ol>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-xl font-semibold mb-2">§4. Płatności</h2>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>
+            Opłata za zajęcia dokonywana jest w formie przedpłaty za cały miesiąc,
+            najpóźniej przed pierwszymi zajęciami danego miesiąca.
+          </li>
+          <li>
+            Zajęcia pozaprogramowe, tj. realizowane poza ustalonym harmonogramem,
+            podlegają rozliczeniu w dniu ich przeprowadzenia.
+          </li>
+          <li>
+            W przypadku braku wpłaty Korepetytor jest uprawniony do wstrzymania realizacji zajęć.
+          </li>
+          <li>
+            Korepetytor zastrzega sobie prawo do zmiany cennika z co najmniej dwutygodniowym wyprzedzeniem.
+          </li>
         </ol>
       </section>
     </div>
-  )
+  );
 }
