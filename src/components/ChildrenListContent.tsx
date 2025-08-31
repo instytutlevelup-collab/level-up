@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { db } from "@/lib/firebase"
-import { doc, updateDoc } from "firebase/firestore"
+import { db, auth } from "@/lib/firebase"
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -27,6 +27,15 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
   const [error, setError] = useState("")
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null)
   const [editedPermissions, setEditedPermissions] = useState<Record<string, { canCancel: boolean; canBook: boolean }>>({})
+  const [showForm, setShowForm] = useState(false)
+  const [newStudent, setNewStudent] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    school: "",
+    classLevel: "",
+    subjects: "",
+  })
 
   const handlePermissionToggle = async (student: Student, permission: "canCancel" | "canBook", value: boolean) => {
     try {
@@ -39,6 +48,59 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
     } catch (e) {
       setError("Błąd podczas aktualizacji uprawnień dziecka.")
       console.error(e)
+    }
+  }
+
+  // Dodawanie nowego ucznia przez rodzica
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    try {
+      if (!auth.currentUser) {
+        setError("Musisz być zalogowany.")
+        return
+      }
+      const docRef = await addDoc(collection(db, "users"), {
+        firstName: newStudent.firstName,
+        lastName: newStudent.lastName,
+        email: newStudent.email,
+        school: newStudent.school,
+        classLevel: newStudent.classLevel,
+        subjects: newStudent.subjects.split(",").map((s) => s.trim()).filter(Boolean),
+        accountType: "student",
+        acceptedTerms: true,
+        acceptedTermsAt: new Date().toISOString(),
+        parentId: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+        canBook: false,
+        canCancel: false,
+      })
+      setStudents((prev) => [
+        ...prev,
+        {
+          id: docRef.id,
+          firstName: newStudent.firstName,
+          lastName: newStudent.lastName,
+          canBook: false,
+          canCancel: false,
+        },
+      ])
+      setShowForm(false)
+      setNewStudent({
+        firstName: "",
+        lastName: "",
+        email: "",
+        school: "",
+        classLevel: "",
+        subjects: "",
+      })
+    } catch (e: unknown) {
+      setError("Błąd podczas dodawania ucznia.")
+      if (e instanceof Error) {
+        console.error(e.message)
+      } else {
+        console.error(e)
+      }
     }
   }
 
@@ -155,6 +217,97 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
               })}
             </ul>
           )}
+          {/* Dodaj ucznia */}
+          <div className="mt-6">
+            {!showForm ? (
+              <Button
+                type="button"
+                className="bg-blue-500 text-white hover:bg-blue-600"
+                onClick={() => setShowForm(true)}
+              >
+                Dodaj ucznia
+              </Button>
+            ) : (
+              <form onSubmit={handleAddStudent} className="border rounded p-4 mt-4 space-y-3 bg-gray-50">
+                <div>
+                  <Label htmlFor="firstName">Imię</Label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    value={newStudent.firstName}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, firstName: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Nazwisko</Label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    value={newStudent.lastName}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, lastName: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    value={newStudent.email}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="school">Szkoła</Label>
+                  <input
+                    id="school"
+                    type="text"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    value={newStudent.school}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, school: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="classLevel">Klasa</Label>
+                  <input
+                    id="classLevel"
+                    type="text"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    value={newStudent.classLevel}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, classLevel: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="subjects">Przedmioty (oddziel przecinkami)</Label>
+                  <input
+                    id="subjects"
+                    type="text"
+                    className="block w-full border rounded px-2 py-1 mt-1"
+                    placeholder="matematyka, angielski"
+                    value={newStudent.subjects}
+                    onChange={(e) => setNewStudent((prev) => ({ ...prev, subjects: e.target.value }))}
+                  />
+                </div>
+                <div className="flex gap-3 mt-2">
+                  <Button type="submit" className="bg-green-500 text-white hover:bg-green-600">
+                    Zapisz
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowForm(false)}
+                  >
+                    Anuluj
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

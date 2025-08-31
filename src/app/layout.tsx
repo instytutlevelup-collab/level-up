@@ -6,7 +6,7 @@ import UserNavLinks from '@/components/ui/UserNavLinks'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Instytut Wiedzy "Level Up!" - Twój upgrade do lepszych wyników',
+  title: 'Instytut Wiedzy Level Up! - Twój upgrade do lepszych wyników',
   description:
     'Aplikacja do rezerwacji terminów korepetycji z możliwością powiązania kont ucznia i rodzica',
 }
