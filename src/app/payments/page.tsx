@@ -331,15 +331,23 @@ export default function PaymentsPage() {
               />
             </div>
             <div className="mb-4">
-              <Label>Ilość planowanych godzin</Label>
+              <Label>Zaplanowane godziny (do opłacenia)</Label>
               <Input type="number" value={plannedHours} onChange={e => setPlannedHours(Number(e.target.value))} />
             </div>
             <div className="mb-4">
-              <Label>Ilość zrealizowanych godzin</Label>
+              <Label>Dodatkowe godziny</Label>
               <Input type="number" value={completedHours} onChange={e => setCompletedHours(Number(e.target.value))} />
             </div>
             <div className="mb-4">
-              <Label>Do zwrotu (+)/do zapłaty (-)</Label>
+              <Label>Odwołane zajęcia</Label>
+              <Input type="number" value={balance} onChange={e => setBalance(Number(e.target.value))} />
+            </div>
+            <div className="mb-4">
+              <Label>Zajęcia przełożone na kolejny miesiąc</Label>
+              <Input type="number" value={balance} onChange={e => setBalance(Number(e.target.value))} />
+            </div>
+            <div className="mb-4">
+              <Label>Do przeniesienia na kolejny miesiąc</Label>
               <Input type="number" value={balance} onChange={e => setBalance(Number(e.target.value))} />
             </div>
             <div className="mb-4">
