@@ -51,9 +51,12 @@ export default function RegisterPage() {
         ...(formData.accountType === "student" && {
           school: formData.school,
           classLevel: formData.classLevel,
+          canBook: true,
+          canCancel: true,
         }),
         acceptedTerms: true,
         acceptedTermsAt: new Date().toISOString(),
+        acceptedPrivacy: true,
         acceptedPrivacyAt: new Date().toISOString(),
       })
 
