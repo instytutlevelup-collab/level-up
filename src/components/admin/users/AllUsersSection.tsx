@@ -215,7 +215,7 @@ export default function AllUsersSection() {
                     <input
                       id="canCancel"
                       type="checkbox"
-                      checked={selectedUser.canCancel || false}
+                      checked={selectedUser.canCancel || true}
                       onChange={e =>
                         setSelectedUser(prev =>
                           prev ? { ...prev, canCancel: e.target.checked } : prev
@@ -230,7 +230,7 @@ export default function AllUsersSection() {
                     <input
                       id="canBook"
                       type="checkbox"
-                      checked={selectedUser.canBook || false}
+                      checked={selectedUser.canBook || true}
                       onChange={e =>
                         setSelectedUser(prev =>
                           prev ? { ...prev, canBook: e.target.checked } : prev

@@ -21,7 +21,7 @@ import { getNotificationsForUser, markAsRead } from "@/lib/notifications"
 export default function UserNavLinks() {
   const [accountType, setAccountType] = useState<string | null>(null)
   const [canBook, setCanBook] = useState<boolean>(false)
-  const [loggedIn, setLoggedIn] = useState<boolean>(false)
+  const [loggedIn, setLoggedIn] = useState<boolean>(true)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const router = useRouter()

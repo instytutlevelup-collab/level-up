@@ -101,8 +101,8 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
         parentId: auth.currentUser.uid,
         parentEmail: auth.currentUser.email,
         createdAt: serverTimestamp(),
-        canBook: false,
-        canCancel: false,
+        canBook: true,
+        canCancel: true,
         authUid: null,
       })
       const uid = docRef.id
@@ -113,8 +113,8 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
           id: uid,
           firstName: newStudent.firstName,
           lastName: newStudent.lastName,
-          canBook: false,
-          canCancel: false,
+          canBook: true,
+          canCancel: true,
           authUid: null,
         },
       ])
@@ -172,8 +172,8 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
               {students.map((student) => {
                 const isEditing = editingStudentId === student.id
                 const permissions = isEditing
-                  ? editedPermissions[student.id] || { canCancel: student.canCancel || false, canBook: student.canBook || false }
-                  : { canCancel: student.canCancel || false, canBook: student.canBook || false }
+                  ? editedPermissions[student.id] || { canCancel: student.canCancel ?? true, canBook: student.canBook ?? true }
+                  : { canCancel: student.canCancel ?? true, canBook: student.canBook ?? true }
 
                 const displayName = [student.firstName, student.lastName]
                   .filter(Boolean)
@@ -194,7 +194,7 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
                   setEditingStudentId(student.id)
                   setEditedPermissions((prev) => ({
                     ...prev,
-                    [student.id]: { canCancel: student.canCancel || false, canBook: student.canBook || false },
+                    [student.id]: { canCancel: student.canCancel ?? true, canBook: student.canBook ?? true },
                   }))
                 }
 
