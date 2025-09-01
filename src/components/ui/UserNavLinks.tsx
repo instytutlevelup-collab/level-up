@@ -99,7 +99,7 @@ export default function UserNavLinks() {
               href="/booking"
               className="text-gray-900 hover:text-gray-600 px-3 py-2 rounded-md text-sm font-medium"
             >
-              Zarerezwuj termin
+              Zarezerwuj termin
             </Link>
           )}
                     <Link
