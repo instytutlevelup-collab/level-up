@@ -903,6 +903,8 @@ useEffect(() => {
             </SelectContent>
           </Select>
 
+{(currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
+  <>
           <label>
             Bufor przed (min):
             <input
@@ -924,6 +926,8 @@ useEffect(() => {
               onChange={e => setBufferAfter(Number(e.target.value))}
             />
           </label>
+</>
+)}
 
           {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
             <>
