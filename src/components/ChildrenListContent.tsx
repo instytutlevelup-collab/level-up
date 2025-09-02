@@ -333,7 +333,7 @@ export default function StudentsPage({ studentsList = [] }: StudentsPageProps) {
                     disabled={!newStudent.school}
                   >
                     {!newStudent.school ? (
-                      <option value="">Wybierz szkołę</option>
+                      <option value="">Wybierz klasę</option>
                     ) : (
                       getClassOptions().map((cls) => (
                         <option key={cls} value={cls}>
