@@ -19,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="google-site-verification" content="UH8aYObvEClynXamDs_ymWeIoAkrqIefLJ-g9_mS5f8" />
       </head>
       <body className={inter.className}>
@@ -28,8 +29,8 @@ export default function RootLayout({
               <div className="flex items-center">
                 <h1 className="text-xl font-bold text-gray-900">Instytut Wiedzy &quot;Level Up!&quot;</h1>
               </div>
-              <div className="hidden md:block">
-                <div className="ml-10 flex items-baseline space-x-4">
+              <div className="block">
+                <div className="ml-4 md:ml-10 flex flex-wrap items-baseline space-x-4">
                   <UserNavLinks />
                 </div>
               </div>
