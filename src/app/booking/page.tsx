@@ -46,8 +46,19 @@ const normalizeMode = (v: string) => {
   return s
 }
 
+// Helper function to check if two intervals overlap
+function intervalsOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+  // All inputs are ISO strings (e.g., "2024-06-10T13:00")
+  const s1 = new Date(start1).getTime();
+  const e1 = new Date(end1).getTime();
+  const s2 = new Date(start2).getTime();
+  const e2 = new Date(end2).getTime();
+  return s1 < e2 && s2 < e1;
+}
+
 export default function BookingPage() {
   const [subjects, setSubjects] = useState<string[]>([])
+  const [vacations, setVacations] = useState<DocumentData[]>([])
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -186,11 +197,12 @@ useEffect(() => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [avail, books, tutorsData] = await Promise.all([
+      const [avail, books, tutorsData, vacationsSnap] = await Promise.all([
         getDocs(collection(db, "availability")),
         getDocs(collection(db, "bookings")),
-        getDocs(query(collection(db, "users"), where("accountType", "==", "tutor")))
-      ])
+        getDocs(query(collection(db, "users"), where("accountType", "==", "tutor"))),
+        getDocs(collection(db, "vacations")),
+      ]);
       setAvailability(avail.docs.map(doc => {
         const data = doc.data()
         return {
@@ -203,6 +215,7 @@ useEffect(() => {
       }))
       setBookings(books.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)))
       setTutors(tutorsData.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      setVacations(vacationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
 
       const settingsSnap = await getDocs(collection(db, "settings"))
       if (!settingsSnap.empty) {
@@ -225,13 +238,14 @@ useEffect(() => {
   const formatPolishDate = (date: Date | string) =>
   format(typeof date === 'string' ? parseISO(date) : date, 'EEEE, d MMMM yyyy', { locale: pl })
 
-  // Rozszerzona funkcja sprawdzająca zajętość slotu, uwzględnia odwołane lekcje i makeup_used
+  // Rozszerzona funkcja sprawdzająca zajętość slotu, uwzględnia odwołane lekcje i makeup_used oraz urlopy
   const isSlotTaken = (tutorId: string, date: string, time: string, duration: number) => {
-  const givenDate = new Date(date)
+    const givenDate = new Date(date)
     const givenDay = daysOfWeek[givenDate.getDay()]?.value
     // statuses to ignore as not active
     const ignoredStatuses = ["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used"];
-    return bookings.some(b => {
+    // Check bookings
+    const taken = bookings.some(b => {
       if (b.tutorId !== tutorId) return false
 
       // ignoruj odwołane lekcje i makeup_used
@@ -267,6 +281,28 @@ useEffect(() => {
 
       return false
     })
+    if (taken) return true;
+    // Check vacations for this tutor
+    const slotStart = date + "T" + time;
+    // Compute end time string
+    const endDateObj = new Date(date + "T" + time);
+    endDateObj.setMinutes(endDateObj.getMinutes() + duration);
+    const slotEnd = endDateObj.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+    for (const vac of vacations) {
+      if (vac.tutorId === tutorId) {
+        if (
+          intervalsOverlap(
+            slotStart,
+            slotEnd,
+            vac.startDateTime,
+            vac.endDateTime
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   // Zwraca dostępne daty, filtrując zajęte (zarówno jednorazowe, jak i cykliczne)
@@ -274,7 +310,12 @@ useEffect(() => {
     if (!schoolYearStart || !schoolYearEnd) return []
 
     const datesSet = new Set<string>()
-    const today = new Date()
+    // Patch: Use today at midnight, and also get now and today's string
+    const todayMid = new Date()
+    todayMid.setHours(0, 0, 0, 0)
+    const now = new Date()
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const todayStr = format(now, "yyyy-MM-dd")
 
     availability.forEach((a) => {
       if (a.tutorId !== tutorId) return
@@ -283,22 +324,30 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return
       if (a.type === "one-time") {
+        // PATCH: Replace block with new logic
         const date = a.date
-        if (new Date(date) >= today) {
-          const durationMinutes = a.endTime
-            ? (parseInt(a.endTime.split(":")[0]) * 60 + parseInt(a.endTime.split(":")[1]))
-              - (parseInt(a.startTime.split(":")[0]) * 60 + parseInt(a.startTime.split(":")[1]))
-            : 60;
+        if (new Date(date) >= todayMid) {
+          const [sh, sm] = (a.startTime || "").split(":").map(Number)
+          const [eh, em] = (a.endTime || "").split(":").map(Number)
+          const start = sh * 60 + sm
+          const end = eh * 60 + em
 
-          // sprawdzamy czy istnieje aktywna rezerwacja (nie anulowana) dla tego dnia i godziny
-          const activeBooking = bookings.some(b =>
-            b.tutorId === tutorId &&
-            b.fullDate === date &&
-            !["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor"].includes(b.status ?? "")
-          );
+          let available = false
+          for (let t = start; t + duration <= end; t += 10) {
+            // jeśli to dzisiaj, pomiń godziny, które już minęły
+            if (date === todayStr && t <= nowMins) continue
+            const h = String(Math.floor(t / 60)).padStart(2, "0")
+            const m = String(t % 60).padStart(2, "0")
+            const timeStr = `${h}:${m}`
 
-          if (!activeBooking && !isSlotTaken(tutorId, date || "", a.startTime || "", durationMinutes)) {
-            datesSet.add(date);
+            if (!isSlotTaken(tutorId, date || "", timeStr, duration)) {
+              available = true
+              break
+            }
+          }
+
+          if (available) {
+            datesSet.add(date)
           }
         }
       }
@@ -310,7 +359,8 @@ useEffect(() => {
         const diff = (dayIndex - firstDate.getDay() + 7) % 7
         firstDate.setDate(firstDate.getDate() + diff)
         for (let d = new Date(firstDate); d <= schoolYearEnd; d.setDate(d.getDate() + 7)) {
-          if (d >= today) {
+          // PATCH: Use todayMid for comparison
+          if (d >= todayMid) {
             const dateStr = format(new Date(d), "yyyy-MM-dd") ?? ""
             const [sh, sm] = (a.startTime || "").split(":").map(Number)
             const [eh, em] = (a.endTime || "").split(":").map(Number)
@@ -318,6 +368,8 @@ useEffect(() => {
             const end = eh * 60 + em
             let available = false
             for (let t = start; t + duration <= end; t += 10) {
+              // PATCH: skip past times for today
+              if (dateStr === todayStr && t <= nowMins) continue
               const h = String(Math.floor(t / 60)).padStart(2, "0")
               const m = String(t % 60).padStart(2, "0")
               const timeStr = `${h}:${m}`
@@ -336,7 +388,7 @@ useEffect(() => {
     return Array.from(datesSet).sort()
   }
 
-  // Zwraca dostępne sloty, uwzględniając blokowanie także przez powtarzające się rezerwacje
+  // Zwraca dostępne sloty, uwzględniając blokowanie także przez powtarzające się rezerwacje i urlopy
   const getAvailableSlots = (type: "weekly" | "one-time") => {
     const slots: string[] = []
     const filtered = availability.filter(a => {
@@ -363,26 +415,49 @@ useEffect(() => {
     })
     let fullDate = specificDate;
     if (type === "weekly" && day && schoolYearStart) {
-      const today = new Date();
+      // PATCH: Use today at midnight for weekly slot calculation
+      const todayMid = new Date();
+      todayMid.setHours(0, 0, 0, 0);
       const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(day).toLowerCase()); // 0-6
       const first = new Date(schoolYearStart);
       const offset = (dayIndex - first.getDay() + 7) % 7;
       first.setDate(first.getDate() + offset);
-      while (first < today) {
+      while (first < todayMid) {
         first.setDate(first.getDate() + 7);
       }
       fullDate = format(first, "yyyy-MM-dd");
     }
     if (!fullDate) return slots
+    // PATCH: Add now, nowMins, todayStr for slot skipping
+    const now = new Date()
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const todayStr = format(now, "yyyy-MM-dd")
     filtered.forEach(a => {
       const [sh, sm] = (a.startTime || "").split(":").map(Number)
       const [eh, em] = (a.endTime || "").split(":").map(Number)
       const start = sh * 60 + sm
       const end = eh * 60 + em
       for (let t = start; t + duration <= end; t += 10) {
+        // jeśli to dzisiaj, pomiń godziny, które już minęły
+        if (fullDate === todayStr && t <= nowMins) continue
         const h = String(Math.floor(t / 60)).padStart(2, "0")
         const m = String(t % 60).padStart(2, "0")
         const timeStr = `${h}:${m}`
+        // Vacation check
+        const slotStart = fullDate + "T" + timeStr;
+        const endDateObj = new Date(fullDate + "T" + timeStr);
+        endDateObj.setMinutes(endDateObj.getMinutes() + duration);
+        const slotEnd = endDateObj.toISOString().slice(0, 16);
+        let inVacation = false;
+        for (const vac of vacations) {
+          if (vac.tutorId === tutorId) {
+            if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
+              inVacation = true;
+              break;
+            }
+          }
+        }
+        if (inVacation) continue;
         if (!isSlotTaken(tutorId || "", fullDate || "", timeStr || "", duration)) {
           slots.push(timeStr)
         }
@@ -413,12 +488,14 @@ useEffect(() => {
 
     let fullDate = specificDate;
     if (type === "weekly" && day && schoolYearStart) {
-      const today = new Date();
+      // PATCH: Use today at midnight for weekly booking
+      const todayMid = new Date();
+      todayMid.setHours(0, 0, 0, 0);
       const dayIndex = daysOfWeek.findIndex(d => d.value === day);
       const first = new Date(schoolYearStart);
       const offset = (dayIndex - first.getDay() + 7) % 7;
       first.setDate(first.getDate() + offset);
-      while (first < today) {
+      while (first < todayMid) {
         first.setDate(first.getDate() + 7);
       }
       fullDate = format(first, "yyyy-MM-dd");
@@ -451,6 +528,39 @@ useEffect(() => {
       }
     }
 
+    // Vacation awareness: check if slot overlaps any vacation for this tutor
+    // Compute slot start and end
+    let slotStart: string, slotEnd: string;
+    if (type === "weekly" && day && fullDate) {
+      slotStart = fullDate + "T" + time;
+      const endDateObj = new Date(fullDate + "T" + time);
+      endDateObj.setMinutes(endDateObj.getMinutes() + duration);
+      slotEnd = endDateObj.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+    } else if (type === "one-time" && fullDate) {
+      slotStart = fullDate + "T" + time;
+      const endDateObj = new Date(fullDate + "T" + time);
+      endDateObj.setMinutes(endDateObj.getMinutes() + duration);
+      slotEnd = endDateObj.toISOString().slice(0, 16);
+    } else {
+      slotStart = "";
+      slotEnd = "";
+    }
+    for (const vac of vacations) {
+      if (vac.tutorId === tutorId) {
+        if (
+          intervalsOverlap(
+            slotStart,
+            slotEnd,
+            vac.startDateTime,
+            vac.endDateTime
+          )
+        ) {
+          alert("Korepetytor jest na urlopie w tym terminie.");
+          return;
+        }
+      }
+    }
+
     if (isSlotTaken(tutorId || "", fullDate || "", time || "", duration)) {
       alert("Ten termin jest już zajęty.")
       return
@@ -473,6 +583,31 @@ useEffect(() => {
         while (d <= schoolYearEnd) {
           if (d >= now) {
             const dStr = format(new Date(d), "yyyy-MM-dd")
+            // Vacation awareness for each occurrence
+            const slotStartRec = dStr + "T" + time;
+            const endDateObj = new Date(dStr + "T" + time);
+            endDateObj.setMinutes(endDateObj.getMinutes() + duration);
+            const slotEndRec = endDateObj.toISOString().slice(0, 16);
+            let isVacation = false;
+            for (const vac of vacations) {
+              if (vac.tutorId === tutorId) {
+                if (
+                  intervalsOverlap(
+                    slotStartRec,
+                    slotEndRec,
+                    vac.startDateTime,
+                    vac.endDateTime
+                  )
+                ) {
+                  isVacation = true;
+                  break;
+                }
+              }
+            }
+            if (isVacation) {
+              d.setDate(d.getDate() + 7)
+              continue;
+            }
             if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration)) {
               // If makeupForLessonId is set, treat the first occurrence as odrabiana (makeup), rest as scheduled
               if (
@@ -524,7 +659,7 @@ useEffect(() => {
           d.setDate(d.getDate() + 7)
         }
         if (toAdd.length === 0) {
-          alert("Wszystkie terminy cykliczne są już zajęte.")
+          alert("Wszystkie terminy cykliczne są już zajęte lub przypadają na urlop korepetytora.")
           return
         }
         for (const bookingData of toAdd) {
