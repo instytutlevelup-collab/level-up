@@ -25,7 +25,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, addMinutes } from "date-fns"
 import { pl } from "date-fns/locale"
 
 const daysOfWeek = [
@@ -84,6 +84,8 @@ export default function BookingPage() {
   const [specificDate, setSpecificDate] = useState("")
   const [time, setTime] = useState("")
   const [lessonMode, setLessonMode] = useState("")
+  const [bufferBefore, setBufferBefore] = useState<number>(0)
+  const [bufferAfter, setBufferAfter] = useState<number>(0)
 // Booking interface for typing bookings
 interface Booking {
   id: string;
@@ -103,6 +105,8 @@ interface Booking {
   originalLessonId?: string;
   createdAt?: string;
   createdById?: string;
+  bufferBefore?: number;
+  bufferAfter?: number;
 }
 
   // Odrabiane lekcje (makeup)
@@ -239,7 +243,7 @@ useEffect(() => {
   format(typeof date === 'string' ? parseISO(date) : date, 'EEEE, d MMMM yyyy', { locale: pl })
 
   // Rozszerzona funkcja sprawdzająca zajętość slotu, uwzględnia odwołane lekcje i makeup_used oraz urlopy
-  const isSlotTaken = (tutorId: string, date: string, time: string, duration: number) => {
+  const isSlotTaken = (tutorId: string, date: string, time: string, duration: number, bufferBeforeParam?: number, bufferAfterParam?: number) => {
     const givenDate = new Date(date)
     const givenDay = daysOfWeek[givenDate.getDay()]?.value
     // statuses to ignore as not active
@@ -251,18 +255,32 @@ useEffect(() => {
       // ignoruj odwołane lekcje i makeup_used
       if (ignoredStatuses.includes(b.status ?? "")) return false
 
+      // Determine bufferBefore/bufferAfter for this lesson (default 0)
+      const lessonBufferBefore = typeof b.bufferBefore === "number" ? b.bufferBefore : 0
+      const lessonBufferAfter = typeof b.bufferAfter === "number" ? b.bufferAfter : 0
+
       // Sprawdzenie rezerwacji jednorazowej
       if (!b.isRecurring && b.fullDate === (date ?? "")) {
-        // ignoruj anulowane lekcje (również "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used")
         if (b.status && ignoredStatuses.includes(b.status)) return false;
         if (!b.time) return false;
-        const [bh, bm] = (b.time || "").split(":").map(Number);
-        const bStart = bh * 60 + bm
-        const bEnd = bStart + (b.duration ?? 60)
-        const [th, tm] = (time ?? "").split(":").map(Number)
-        const tStart = th * 60 + tm
-        const tEnd = tStart + duration
-        return !(tEnd <= bStart || tStart >= bEnd)
+        // Start and end time for existing lesson
+        const lessonStart = new Date((b.fullDate || "") + "T" + (b.time || "00:00"))
+        const lessonEnd = addMinutes(new Date(lessonStart), b.duration ?? 60)
+        const blockStart = addMinutes(new Date(lessonStart), -lessonBufferBefore)
+        const blockEnd = addMinutes(new Date(lessonEnd), lessonBufferAfter)
+        // Start and end time for new lesson
+        const newStart = new Date((date || "") + "T" + (time || "00:00"))
+        const newEnd = addMinutes(new Date(newStart), duration)
+        // Apply buffer for new lesson if provided (for new slot)
+        const newBufferBefore = typeof bufferBeforeParam === "number" ? bufferBeforeParam : 0
+        const newBufferAfter = typeof bufferAfterParam === "number" ? bufferAfterParam : 0
+        const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore)
+        const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
+        // Conflict if newBlockStart < blockEnd && newBlockEnd > blockStart
+        if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
+          return true
+        }
+        return false
       }
 
       // Sprawdzenie rezerwacji cyklicznej (weekly)
@@ -270,13 +288,21 @@ useEffect(() => {
         const d = new Date(date ?? "")
         if (d < schoolYearStart || d > schoolYearEnd) return false
         if (!b.time) return false;
-        const [bh, bm] = (b.time || "").split(":").map(Number);
-        const bStart = bh * 60 + bm
-        const bEnd = bStart + (b.duration ?? 60)
-        const [th, tm] = (time ?? "").split(":").map(Number)
-        const tStart = th * 60 + tm
-        const tEnd = tStart + duration
-        return !(tEnd <= bStart || tStart >= bEnd)
+        const lessonStart = new Date((date || "") + "T" + (b.time || "00:00"))
+        const lessonEnd = addMinutes(new Date(lessonStart), b.duration ?? 60)
+        const blockStart = addMinutes(new Date(lessonStart), -lessonBufferBefore)
+        const blockEnd = addMinutes(new Date(lessonEnd), lessonBufferAfter)
+        // New lesson
+        const newStart = new Date((date || "") + "T" + (time || "00:00"))
+        const newEnd = addMinutes(new Date(newStart), duration)
+        const newBufferBefore = typeof bufferBeforeParam === "number" ? bufferBeforeParam : 0
+        const newBufferAfter = typeof bufferAfterParam === "number" ? bufferAfterParam : 0
+        const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore)
+        const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
+        if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
+          return true
+        }
+        return false
       }
 
       return false
@@ -340,10 +366,10 @@ useEffect(() => {
             const m = String(t % 60).padStart(2, "0")
             const timeStr = `${h}:${m}`
 
-            if (!isSlotTaken(tutorId, date || "", timeStr, duration)) {
-              available = true
-              break
-            }
+          if (!isSlotTaken(tutorId, date || "", timeStr, duration, bufferBefore, bufferAfter)) {
+            available = true
+            break
+          }
           }
 
           if (available) {
@@ -561,7 +587,7 @@ useEffect(() => {
       }
     }
 
-    if (isSlotTaken(tutorId || "", fullDate || "", time || "", duration)) {
+    if (isSlotTaken(tutorId || "", fullDate || "", time || "", duration, bufferBefore, bufferAfter)) {
       alert("Ten termin jest już zajęty.")
       return
     }
@@ -608,7 +634,7 @@ useEffect(() => {
               d.setDate(d.getDate() + 7)
               continue;
             }
-            if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration)) {
+            if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration, bufferBefore, bufferAfter)) {
               // If makeupForLessonId is set, treat the first occurrence as odrabiana (makeup), rest as scheduled
               if (
                 makeupForLessonId &&
@@ -634,6 +660,8 @@ useEffect(() => {
                   createdAt: new Date().toISOString(),
                   createdById: currentUser?.id ?? "",
                   createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
+                  bufferBefore,
+                  bufferAfter,
                 })
               } else {
                 toAdd.push({
@@ -652,6 +680,8 @@ useEffect(() => {
                   createdAt: new Date().toISOString(),
                   createdById: currentUser?.id ?? "",
                   createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
+                  bufferBefore,
+                  bufferAfter,
                 })
               }
             }
@@ -704,7 +734,9 @@ useEffect(() => {
           isRecurring: false,
           createdAt: new Date().toISOString(),
           createdById: currentUser!.id,
-          createdByRole: currentUser?.accountType ?? "student"
+          createdByRole: currentUser?.accountType ?? "student",
+          bufferBefore,
+          bufferAfter,
         }
         if (
           makeupForLessonId &&
@@ -871,6 +903,28 @@ useEffect(() => {
             </SelectContent>
           </Select>
 
+          <label>
+            Bufor przed zajęciami (minuty):
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={bufferBefore}
+              onChange={e => setBufferBefore(Number(e.target.value))}
+            />
+          </label>
+
+          <label>
+            Bufor po zajęciach (minuty):
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={bufferAfter}
+              onChange={e => setBufferAfter(Number(e.target.value))}
+            />
+          </label>
+
           {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
             <>
               <Label>Uczeń</Label>
@@ -980,6 +1034,27 @@ useEffect(() => {
               <SelectItem value="120">120 minut</SelectItem>
             </SelectContent>
           </Select>
+
+          <label>Bufor przed (minuty):
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={bufferBefore}
+              onChange={e => setBufferBefore(Number(e.target.value))}
+            />
+          </label>
+
+          <label>
+            Bufor po (minuty):
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={bufferAfter}
+              onChange={e => setBufferAfter(Number(e.target.value))}
+            />
+          </label>
 
           {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
             <>
