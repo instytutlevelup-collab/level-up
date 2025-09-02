@@ -904,7 +904,7 @@ useEffect(() => {
           </Select>
 
           <label>
-            Bufor przed zajęciami (minuty):
+            Bufor przed (min):
             <input
               type="number"
               min={0}
@@ -915,7 +915,7 @@ useEffect(() => {
           </label>
 
           <label>
-            Bufor po zajęciach (minuty):
+            Bufor po (min):
             <input
               type="number"
               min={0}
@@ -1035,7 +1035,7 @@ useEffect(() => {
             </SelectContent>
           </Select>
 
-          <label>Bufor przed (minuty):
+          <label>Bufor przed (min):
             <input
               type="number"
               min={0}
@@ -1046,7 +1046,7 @@ useEffect(() => {
           </label>
 
           <label>
-            Bufor po (minuty):
+            Bufor po (min):
             <input
               type="number"
               min={0}
