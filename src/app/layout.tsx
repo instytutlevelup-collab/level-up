@@ -29,8 +29,8 @@ export default function RootLayout({
               <div className="flex items-center">
                 <h1 className="text-xl font-bold text-gray-900">Instytut Wiedzy &quot;Level Up!&quot;</h1>
               </div>
-              <div className="block">
-                <div className="ml-2 md:ml-10 flex space-x-4 overflow-x-auto no-scrollbar">
+              <div>
+                <div className="ml-10 flex space-x-4 overflow-x-auto no-scrollbar">
                   <UserNavLinks />
                 </div>
               </div>
