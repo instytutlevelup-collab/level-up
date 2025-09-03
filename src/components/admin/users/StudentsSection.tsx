@@ -26,6 +26,7 @@ interface StudentUser {
   firstName: string
   lastName: string
   notebookLink?: string
+  bookLink?: string
   videoLink?: string
   classroomLink?: string
 }
@@ -46,6 +47,7 @@ export default function AddStudentPage() {
   const [students, setStudents] = useState<StudentUser[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [notebookLink, setNotebookLink] = useState('')
+  const [bookLink, setBookLink] = useState('')
   const [videoLink, setVideoLink] = useState('')
   const [classroomLink, setClassroomLink] = useState('')
   const [studentEditLoading, setStudentEditLoading] = useState(false)
@@ -70,6 +72,7 @@ export default function AddStudentPage() {
             firstName: data.firstName || '',
             lastName: data.lastName || '',
             notebookLink: data.notebookLink || '',
+            bookLink: data.bookLink || '',
             videoLink: data.videoLink || '',
             classroomLink: data.classroomLink || '',
           }
@@ -84,6 +87,7 @@ export default function AddStudentPage() {
     if (selectedStudentId) {
       const student = students.find(s => s.id === selectedStudentId)
       setNotebookLink(student?.notebookLink || '')
+      setBookLink(student?.bookLink || '')
       setVideoLink(student?.videoLink || '')
       setClassroomLink(student?.classroomLink || '')
       setStudentEditError('')
@@ -181,6 +185,7 @@ export default function AddStudentPage() {
             firstName: data.firstName || '',
             lastName: data.lastName || '',
             notebookLink: data.notebookLink || '',
+            bookLink: data.bookLink || '',
             videoLink: data.videoLink || '',
             classroomLink: data.classroomLink || '',
           }
@@ -202,6 +207,7 @@ export default function AddStudentPage() {
     try {
       await updateDoc(doc(db, 'users', selectedStudentId), {
         notebookLink,
+        bookLink,
         videoLink,
         classroomLink,
       })
@@ -210,7 +216,7 @@ export default function AddStudentPage() {
       setStudents(prev =>
         prev.map(s =>
           s.id === selectedStudentId
-            ? { ...s, notebookLink, videoLink, classroomLink }
+            ? { ...s, notebookLink, bookLink, videoLink, classroomLink }
             : s
         )
       )
@@ -390,6 +396,13 @@ export default function AddStudentPage() {
                     <Input
                       value={notebookLink}
                       onChange={e => setNotebookLink(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label>Link do podręcznika:</label>
+                    <Input
+                      value={bookLink}
+                      onChange={e => setBookLink(e.target.value)}
                     />
                   </div>
                   <div>

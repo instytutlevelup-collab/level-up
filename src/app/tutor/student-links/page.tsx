@@ -20,6 +20,7 @@ interface Student {
   lastName: string
   meetingLink?: string
   notebookLink?: string
+  bookLink?: string
   classroomLink?: string
 }
 
@@ -28,7 +29,7 @@ export default function StudentsPanel() {
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
   const [canEditLinks, setCanEditLinks] = useState<boolean | null>(null)
-  const [editedLinks, setEditedLinks] = useState<Record<string, { meetingLink: string, notebookLink: string, classroomLink: string }>>({})
+  const [editedLinks, setEditedLinks] = useState<Record<string, { meetingLink: string, notebookLink: string, bookLink: string, classroomLink: string }>>({})
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -52,11 +53,12 @@ export default function StudentsPanel() {
       fetched.sort((a, b) => a.firstName.localeCompare(b.firstName) || a.lastName.localeCompare(b.lastName))
       setStudents(fetched)
 
-      const initLinks: Record<string, { meetingLink: string, notebookLink: string, classroomLink: string }> = {}
+      const initLinks: Record<string, { meetingLink: string, notebookLink: string, bookLink: string, classroomLink: string }> = {}
       fetched.forEach(s => {
         initLinks[s.id] = {
           meetingLink: s.meetingLink || '',
           notebookLink: s.notebookLink || '',
+          bookLink: s.bookLink || '',
           classroomLink: s.classroomLink || '',
         }
       })
@@ -68,10 +70,11 @@ export default function StudentsPanel() {
     fetchStudents()
   }, [currentUser])
 
-  const handleSave = async (studentId: string, meetingLink: string, notebookLink: string, classroomLink: string) => {
+  const handleSave = async (studentId: string, meetingLink: string, notebookLink: string, bookLink: string, classroomLink: string) => {
     await updateDoc(doc(db, 'users', studentId), {
       meetingLink,
       notebookLink,
+      bookLink,
       classroomLink,
     })
     alert('Zaktualizowano linki')
@@ -124,6 +127,19 @@ export default function StudentsPanel() {
               />
             </div>
             <div>
+              <label className="block font-medium mb-1">Podręcznik online (link):</label>
+              <Input
+                className="border rounded-md p-2 w-full"
+                value={editedLinks[student.id]?.bookLink || ''}
+                onChange={(e) =>
+                  setEditedLinks(prev => ({
+                    ...prev,
+                    [student.id]: { ...prev[student.id], bookLink: e.target.value }
+                  }))
+                }
+              />
+            </div>
+            <div>
               <label className="block font-medium mb-1">Google Classroom (link):</label>
               <Input
                 className="border rounded-md p-2 w-full"
@@ -139,7 +155,7 @@ export default function StudentsPanel() {
             <Button
               onClick={() => {
                 const studentLinks = editedLinks[student.id]
-                handleSave(student.id, studentLinks.meetingLink, studentLinks.notebookLink, studentLinks.classroomLink)
+                handleSave(student.id, studentLinks.meetingLink, studentLinks.notebookLink, studentLinks.bookLink, studentLinks.classroomLink)
               }}
             >
               Zapisz
