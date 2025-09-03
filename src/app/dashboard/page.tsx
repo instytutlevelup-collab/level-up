@@ -23,6 +23,7 @@ interface User {
   linkedAccounts?: { studentId: string; firstName?: string; lastName?: string; studentName?: string }[]
   videoLink?: string
   notebookLink?: string
+  bookLink?: string
   classroomLink?: string
 }
 
@@ -506,6 +507,21 @@ export default function DashboardPage() {
                       rel="noopener noreferrer"
                     >
                       Otwórz zeszyt online
+                    </a>
+                  </Button>
+                )}
+                {currentUser.bookLink && (
+                  <Button
+                    asChild
+                    variant="default"
+                    className="w-full"
+                  >
+                    <a
+                      href={currentUser.bookLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Otwórz podręcznik online
                     </a>
                   </Button>
                 )}
