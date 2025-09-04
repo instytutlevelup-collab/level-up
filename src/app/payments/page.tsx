@@ -359,12 +359,12 @@ export default function PaymentsPage() {
             <div className="mb-4">
               <Label>Komentarze</Label>
               <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full rounded border border-gray-300 p-2"
-           />
-           </div>
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                className="mt-1 block w-full rounded border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+              />
+            </div>
             <Button onClick={handleSaveSettlement}>Zapisz rozliczenie</Button>
 
             {/* Lista istniejących rozliczeń do edycji */}
@@ -441,14 +441,14 @@ export default function PaymentsPage() {
                           <div>
                             <Label>Komentarze</Label>
                             <textarea
-                            value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
-                            onChange={e =>
-                              handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
-                            }
-                            rows={3}
-                            className="mt-1 block w-full rounded border border-gray-300 p-2"
+                              value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
+                              onChange={e =>
+                                handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
+                              }
+                              rows={3}
+                              className="mt-1 block w-full rounded border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                             />
-                            </div>
+                          </div>
                           <Button
                             className="mt-2"
                             disabled={savingSettlements[settlement.id || '']}
