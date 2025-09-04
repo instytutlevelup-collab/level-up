@@ -515,7 +515,7 @@ export default function PaymentsPage() {
                           <p>Anulowane godziny: {settlement.balance}</p>
                           <p>Godziny przełożone na kolejny miesiąc: {settlement.carriedOverHours ?? 0}</p>
                           {settlement.paymentDate && <p>Data płatności: {settlement.paymentDate}</p>}
-                          {settlement.notes && <p>Komentarze: {settlement.notes}</p>}
+                          {settlement.notes && <div className="whitespace-pre-line">Komentarze: {settlement.notes}</div>}
                         </div>
                       </details>
                     </CardContent>
@@ -552,7 +552,7 @@ export default function PaymentsPage() {
                                 <p>Anulowane godziny: {settlement.balance}</p>
                                 <p>Godziny przełożone na kolejny miesiąc: {settlement.carriedOverHours ?? 0}</p>
                                 {settlement.paymentDate && <p>Data płatności: {settlement.paymentDate}</p>}
-                                {settlement.notes && <p>Komentarze: {settlement.notes}</p>}
+                                {settlement.notes && <div className="whitespace-pre-line">Komentarze: {settlement.notes}</div>}
                               </div>
                             </details>
                           </CardContent>
