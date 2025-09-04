@@ -44,7 +44,7 @@ export default function AllUsersSection() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [filterRole, setFilterRole] = useState<string>('all')
-  const roles = ['admin', 'teacher', 'student', 'parent']
+  const roles = ['admin', 'tutor', 'student', 'parent']
 
   useEffect(() => {
     const fetchUsers = async () => {
