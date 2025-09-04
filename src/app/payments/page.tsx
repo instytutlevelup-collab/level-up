@@ -358,8 +358,13 @@ export default function PaymentsPage() {
             </div>
             <div className="mb-4">
               <Label>Komentarze</Label>
-              <Input type="text" value={notes} onChange={e => setNotes(e.target.value)} />
-            </div>
+              <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+              className="mt-1 block w-full rounded border border-gray-300 p-2"
+           />
+           </div>
             <Button onClick={handleSaveSettlement}>Zapisz rozliczenie</Button>
 
             {/* Lista istniejących rozliczeń do edycji */}
@@ -435,14 +440,15 @@ export default function PaymentsPage() {
                           </div>
                           <div>
                             <Label>Komentarze</Label>
-                            <Input
-                              type="text"
-                              value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
-                              }
+                            <textarea
+                            value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
+                            onChange={e =>
+                              handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
+                            }
+                            rows={3}
+                            className="mt-1 block w-full rounded border border-gray-300 p-2"
                             />
-                          </div>
+                            </div>
                           <Button
                             className="mt-2"
                             disabled={savingSettlements[settlement.id || '']}
