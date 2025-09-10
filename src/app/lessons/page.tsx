@@ -149,6 +149,12 @@ export default function LessonsPage() {
         }
 
         allBookings.sort((a, b) => {
+          const isACompleted = a.status === "completed"
+          const isBCompleted = b.status === "completed"
+
+          if (isACompleted && !isBCompleted) return 1
+          if (!isACompleted && isBCompleted) return -1
+
           const dateA = new Date(`${a.fullDate}T${a.time}:00`).getTime()
           const dateB = new Date(`${b.fullDate}T${b.time}:00`).getTime()
           return dateA - dateB
