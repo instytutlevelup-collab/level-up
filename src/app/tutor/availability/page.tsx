@@ -76,6 +76,8 @@ export default function AvailabilityPage() {
 
   // NEW: selected lesson type for mode (now supports multiple)
   const [selectedLessonType, setSelectedLessonType] = useState<string[]>([])
+  // Filter day state
+  const [filterDay, setFilterDay] = useState<string>("all")
 
   // Usunięto stany i funkcje związane z buforami i listą uczniów dla buforów
 
@@ -296,6 +298,20 @@ export default function AvailabilityPage() {
   if (!currentUser) return <p className="p-4">Ładowanie danych użytkownika...</p>
   if (currentUser.accountType !== "tutor") return null
 
+  // Filtered lists for weekly and one-time availability
+  const filteredWeekly =
+    filterDay !== "all"
+      ? weeklyAvailability.filter(item => item.day === filterDay)
+      : weeklyAvailability
+
+  const filteredOneTime =
+    filterDay !== "all"
+      ? oneTimeAvailability.filter(item => {
+          const dayName = format(new Date(item.date), "EEEE", { locale: pl }).toLowerCase()
+          return dayName.includes(filterDay)
+        })
+      : oneTimeAvailability
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-12">
 
@@ -414,6 +430,27 @@ export default function AvailabilityPage() {
         </CardContent>
       </Card>
 
+      {/* Filtrowanie po dniu tygodnia */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtruj dostępności według dnia tygodnia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={filterDay} onValueChange={setFilterDay}>
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz dzień" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie</SelectItem>
+              {daysOfWeek.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Lista cyklicznych */}
       <Card>
@@ -421,11 +458,11 @@ export default function AvailabilityPage() {
           <CardTitle>Cykliczne dostępności</CardTitle>
         </CardHeader>
         <CardContent>
-          {weeklyAvailability.length === 0 ? (
+          {filteredWeekly.length === 0 ? (
             <p className="text-gray-500">Brak cyklicznych dostępności</p>
           ) : (
             <ul className="space-y-2">
-              {weeklyAvailability.map((item) => (
+              {filteredWeekly.map((item) => (
                 <li key={item.id} className="flex flex-col md:flex-row justify-between items-start md:items-center border p-3 rounded-md">
                   <div className="w-full md:w-auto">
                     <strong>{formatDate(item.date)}</strong>
@@ -512,18 +549,17 @@ export default function AvailabilityPage() {
           )}
         </CardContent>
       </Card>
-
       {/* Lista jednorazowych */}
       <Card>
         <CardHeader>
           <CardTitle>Jednorazowe dostępności</CardTitle>
         </CardHeader>
         <CardContent>
-          {oneTimeAvailability.length === 0 ? (
+          {filteredOneTime.length === 0 ? (
             <p className="text-gray-500">Brak jednorazowych dostępności</p>
           ) : (
             <ul className="space-y-2">
-              {oneTimeAvailability.map((item) => (
+              {filteredOneTime.map((item) => (
                 <li key={item.id} className="flex flex-col md:flex-row justify-between items-start md:items-center border p-3 rounded-md">
                   <div className="w-full md:w-auto">
                     <strong>{formatDate(item.date)}</strong>
