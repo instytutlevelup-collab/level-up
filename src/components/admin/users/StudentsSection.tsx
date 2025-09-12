@@ -27,7 +27,7 @@ interface StudentUser {
   lastName: string
   notebookLink?: string
   bookLink?: string
-  videoLink?: string
+  meetingLink?: string
   classroomLink?: string
 }
 
@@ -48,7 +48,7 @@ export default function AddStudentPage() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [notebookLink, setNotebookLink] = useState('')
   const [bookLink, setBookLink] = useState('')
-  const [videoLink, setVideoLink] = useState('')
+  const [meetingLink, setMeetingLink] = useState('')
   const [classroomLink, setClassroomLink] = useState('')
   const [studentEditLoading, setStudentEditLoading] = useState(false)
   const [studentEditError, setStudentEditError] = useState('')
@@ -73,7 +73,7 @@ export default function AddStudentPage() {
             lastName: data.lastName || '',
             notebookLink: data.notebookLink || '',
             bookLink: data.bookLink || '',
-            videoLink: data.videoLink || '',
+            meetingLink: data.meetingLink || '',
             classroomLink: data.classroomLink || '',
           }
         }) as StudentUser[]
@@ -82,13 +82,13 @@ export default function AddStudentPage() {
     fetchParentsAndStudents()
   }, [])
 
-  // When selectedStudentId changes, update notebookLink/videoLink fields
+  // When selectedStudentId changes, update notebookLink/meetingLink fields
   useEffect(() => {
     if (selectedStudentId) {
       const student = students.find(s => s.id === selectedStudentId)
       setNotebookLink(student?.notebookLink || '')
       setBookLink(student?.bookLink || '')
-      setVideoLink(student?.videoLink || '')
+      setMeetingLink(student?.meetingLink || '')
       setClassroomLink(student?.classroomLink || '')
       setStudentEditError('')
       setStudentEditSuccess('')
@@ -186,7 +186,7 @@ export default function AddStudentPage() {
             lastName: data.lastName || '',
             notebookLink: data.notebookLink || '',
             bookLink: data.bookLink || '',
-            videoLink: data.videoLink || '',
+            meetingLink: data.meetingLink || '',
             classroomLink: data.classroomLink || '',
           }
         }) as StudentUser[]
@@ -208,7 +208,7 @@ export default function AddStudentPage() {
       await updateDoc(doc(db, 'users', selectedStudentId), {
         notebookLink,
         bookLink,
-        videoLink,
+        meetingLink,
         classroomLink,
       })
       setStudentEditSuccess('Zapisano!')
@@ -216,7 +216,7 @@ export default function AddStudentPage() {
       setStudents(prev =>
         prev.map(s =>
           s.id === selectedStudentId
-            ? { ...s, notebookLink, bookLink, videoLink, classroomLink }
+            ? { ...s, notebookLink, bookLink, meetingLink, classroomLink }
             : s
         )
       )
@@ -387,8 +387,8 @@ export default function AddStudentPage() {
                   <div>
                     <label>Link do wideokonferencji:</label>
                     <Input
-                      value={videoLink}
-                      onChange={e => setVideoLink(e.target.value)}
+                      value={meetingLink}
+                      onChange={e => setMeetingLink(e.target.value)}
                     />
                   </div>
                   <div>
