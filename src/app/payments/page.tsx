@@ -71,6 +71,8 @@ export default function PaymentsPage() {
   // For editing settlements
   const [editingSettlements, setEditingSettlements] = useState<Record<string, Partial<MonthlySettlement>>>({});
   const [savingSettlements, setSavingSettlements] = useState<Record<string, boolean>>({});
+  // Local edit mode per settlement
+  const [isEditingSettlements, setIsEditingSettlements] = useState<Record<string, boolean>>({});
 
   // Fetch current user and initial data
   useEffect(() => {
@@ -373,6 +375,7 @@ export default function PaymentsPage() {
               {settlements.length === 0 && <p>Brak rozliczeń dla wybranego ucznia.</p>}
               {settlements.map(settlement => {
                 const edit = editingSettlements[settlement.id || ''] || {};
+                const isEditing = isEditingSettlements[settlement.id || ''] || false;
                 return (
                   <Card key={settlement.id} className="mb-4">
                     <CardHeader>
@@ -382,109 +385,180 @@ export default function PaymentsPage() {
                       <details>
                         <summary>Szczegóły</summary>
                         <div className="mt-2 space-y-2">
-                          <div>
-                            <Label>Zaplanowane godziny </Label>
-                            <Input
-                              type="number"
-                              value={edit.plannedHours !== undefined ? edit.plannedHours : settlement.plannedHours || 0}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'plannedHours', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label>Dodatkowe godziny</Label>
-                            <Input
-                              type="number"
-                              value={edit.completedHours !== undefined ? edit.completedHours : settlement.completedHours || 0}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'completedHours', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                          <div>
-                          <div>
-                            <Label>Godziny przełożone na kolejny miesiąc</Label>
-                            <Input
-                              type="number"
-                              value={edit.carriedOverHours !== undefined ? edit.carriedOverHours : settlement.carriedOverHours || 0}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'carriedOverHours', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                            <Label>Anulowane godziny</Label>
-                            <Input
-                              type="number"
-                              value={edit.balance !== undefined ? edit.balance : settlement.balance || 0}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'balance', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label>Data płatności</Label>
-                            <Input
-                              type="date"
-                              value={
-                                typeof edit.paymentDate === 'string'
-                                  ? edit.paymentDate
-                                  : (typeof settlement.paymentDate === 'string'
-                                    ? settlement.paymentDate
-                                    : '')
-                              }
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'paymentDate', e.target.value)
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label>Komentarze</Label>
-                            <textarea
-                              value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
-                              onChange={e =>
-                                handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
-                              }
-                              rows={3}
-                              className="mt-1 block w-full rounded border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-                            />
-                          </div>
-                          <Button
-                            className="mt-2"
-                            disabled={savingSettlements[settlement.id || '']}
-                            onClick={() => {
-                              // Only send changed fields — bez indeksowania dynamicznymi kluczami
-                              const updatedFields: Partial<MonthlySettlement> = {};
-
-                              if (edit.plannedHours !== undefined && edit.plannedHours !== (settlement.plannedHours ?? 0)) {
-                                updatedFields.plannedHours = edit.plannedHours;
-                              }
-                              if (edit.completedHours !== undefined && edit.completedHours !== (settlement.completedHours ?? 0)) {
-                                updatedFields.completedHours = edit.completedHours;
-                              }
-                              if (edit.balance !== undefined && edit.balance !== (settlement.balance ?? 0)) {
-                                updatedFields.balance = edit.balance;
-                              }
-                              if (edit.carriedOverHours !== undefined && edit.carriedOverHours !== (settlement.carriedOverHours ?? 0)) {
-                                updatedFields.carriedOverHours = edit.carriedOverHours;
-                              }
-                              if (typeof edit.paymentDate === 'string' && edit.paymentDate !== (settlement.paymentDate ?? '')) {
-                                updatedFields.paymentDate = edit.paymentDate;
-                              }
-                              if (typeof edit.notes === 'string' && edit.notes !== (settlement.notes ?? '')) {
-                                updatedFields.notes = edit.notes;
-                              }
-
-                              if (Object.keys(updatedFields).length === 0) {
-                                alert('Brak zmian do zapisania.');
-                                return;
-                              }
-
-                              handleUpdateSettlement(settlement.id || '', updatedFields);
-                            }}
-                          >
-                            {savingSettlements[settlement.id || ''] ? 'Zapisywanie...' : 'Zapisz zmiany'}
-                          </Button>
+                          {/* Edycja pól lub tylko podgląd */}
+                          {!isEditing ? (
+                            <>
+                              <div>
+                                <Label>Zaplanowane godziny </Label>
+                                <p>{settlement.plannedHours ?? 0}</p>
+                              </div>
+                              <div>
+                                <Label>Dodatkowe godziny</Label>
+                                <p>{settlement.completedHours ?? 0}</p>
+                              </div>
+                              <div>
+                                <Label>Godziny przełożone na kolejny miesiąc</Label>
+                                <p>{settlement.carriedOverHours ?? 0}</p>
+                              </div>
+                              <div>
+                                <Label>Anulowane godziny</Label>
+                                <p>{settlement.balance ?? 0}</p>
+                              </div>
+                              <div>
+                                <Label>Data płatności</Label>
+                                <p>{settlement.paymentDate ? settlement.paymentDate : '-'}</p>
+                              </div>
+                              <div>
+                                <Label>Komentarze</Label>
+                                <div className="whitespace-pre-line">{settlement.notes ? settlement.notes : '-'}</div>
+                              </div>
+                              <Button
+                                className="mt-2"
+                                variant="outline"
+                                onClick={() => {
+                                  setIsEditingSettlements(prev => ({
+                                    ...prev,
+                                    [settlement.id || '']: true,
+                                  }));
+                                  // Pre-fill edit fields with current values
+                                  setEditingSettlements(prev => ({
+                                    ...prev,
+                                    [settlement.id || '']: {
+                                      plannedHours: settlement.plannedHours ?? 0,
+                                      completedHours: settlement.completedHours ?? 0,
+                                      carriedOverHours: settlement.carriedOverHours ?? 0,
+                                      balance: settlement.balance ?? 0,
+                                      paymentDate: settlement.paymentDate ?? '',
+                                      notes: settlement.notes ?? '',
+                                    },
+                                  }));
+                                }}
+                              >
+                                Edytuj
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div>
+                                <Label>Zaplanowane godziny </Label>
+                                <Input
+                                  type="number"
+                                  value={edit.plannedHours !== undefined ? edit.plannedHours : settlement.plannedHours || 0}
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'plannedHours', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Dodatkowe godziny</Label>
+                                <Input
+                                  type="number"
+                                  value={edit.completedHours !== undefined ? edit.completedHours : settlement.completedHours || 0}
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'completedHours', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Godziny przełożone na kolejny miesiąc</Label>
+                                <Input
+                                  type="number"
+                                  value={edit.carriedOverHours !== undefined ? edit.carriedOverHours : settlement.carriedOverHours || 0}
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'carriedOverHours', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Anulowane godziny</Label>
+                                <Input
+                                  type="number"
+                                  value={edit.balance !== undefined ? edit.balance : settlement.balance || 0}
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'balance', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Data płatności</Label>
+                                <Input
+                                  type="date"
+                                  value={
+                                    typeof edit.paymentDate === 'string'
+                                      ? edit.paymentDate
+                                      : (typeof settlement.paymentDate === 'string'
+                                        ? settlement.paymentDate
+                                        : '')
+                                  }
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'paymentDate', e.target.value)
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Komentarze</Label>
+                                <textarea
+                                  value={edit.notes !== undefined ? edit.notes : settlement.notes || ''}
+                                  onChange={e =>
+                                    handleEditSettlementField(settlement.id || '', 'notes', e.target.value)
+                                  }
+                                  rows={3}
+                                  className="mt-1 block w-full rounded border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                                />
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  disabled={savingSettlements[settlement.id || '']}
+                                  onClick={() => {
+                                    // Only send changed fields
+                                    const updatedFields: Partial<MonthlySettlement> = {};
+                                    if (edit.plannedHours !== undefined && edit.plannedHours !== (settlement.plannedHours ?? 0)) {
+                                      updatedFields.plannedHours = edit.plannedHours;
+                                    }
+                                    if (edit.completedHours !== undefined && edit.completedHours !== (settlement.completedHours ?? 0)) {
+                                      updatedFields.completedHours = edit.completedHours;
+                                    }
+                                    if (edit.balance !== undefined && edit.balance !== (settlement.balance ?? 0)) {
+                                      updatedFields.balance = edit.balance;
+                                    }
+                                    if (edit.carriedOverHours !== undefined && edit.carriedOverHours !== (settlement.carriedOverHours ?? 0)) {
+                                      updatedFields.carriedOverHours = edit.carriedOverHours;
+                                    }
+                                    if (typeof edit.paymentDate === 'string' && edit.paymentDate !== (settlement.paymentDate ?? '')) {
+                                      updatedFields.paymentDate = edit.paymentDate;
+                                    }
+                                    if (typeof edit.notes === 'string' && edit.notes !== (settlement.notes ?? '')) {
+                                      updatedFields.notes = edit.notes;
+                                    }
+                                    if (Object.keys(updatedFields).length === 0) {
+                                      alert('Brak zmian do zapisania.');
+                                      return;
+                                    }
+                                    handleUpdateSettlement(settlement.id || '', updatedFields);
+                                    // Exit edit mode after save
+                                    setIsEditingSettlements(prev => ({
+                                      ...prev,
+                                      [settlement.id || '']: false,
+                                    }));
+                                  }}
+                                >
+                                  {savingSettlements[settlement.id || ''] ? 'Zapisywanie...' : 'Zapisz zmiany'}
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  type="button"
+                                  onClick={() => {
+                                    setIsEditingSettlements(prev => ({
+                                      ...prev,
+                                      [settlement.id || '']: false,
+                                    }));
+                                  }}
+                                >
+                                  Anuluj
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </details>
                     </CardContent>
