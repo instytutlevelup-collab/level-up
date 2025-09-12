@@ -71,6 +71,7 @@ node_modules/
 # Secrets
 src/lib/credentials/*.json
 eduplan-cb8fb-firebase-adminsdk-fbsvc-b1c42c9f56.json
+serviceAccountKey.json
 
 # Next.js build
 .next
