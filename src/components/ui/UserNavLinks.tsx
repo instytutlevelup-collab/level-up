@@ -1,11 +1,12 @@
 'use client'
 
+import { Timestamp } from "firebase/firestore"
 // TypeScript interface for notifications used in this component
 interface Notification {
   id: string
   message: string
-  lessonDate?: { seconds: number }
-  createdAt?: { seconds: number }
+  lessonDate?: Timestamp | string
+  createdAt?: Timestamp | string
   read: boolean
 }
 
@@ -26,6 +27,31 @@ export default function UserNavLinks() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const router = useRouter()
 
+  const fetchNotifications = async (uid: string) => {
+    const raw = await getNotificationsForUser(uid)
+    const data: Notification[] = raw.map((n: Partial<Notification> & { id: string }) => ({
+      id: n.id,
+      message: n.message ?? "",
+      lessonDate: n.lessonDate,
+      createdAt: n.createdAt,
+      read: n.read ?? false
+    }))
+    data.sort((a, b) => {
+      const aTime = a.createdAt instanceof Timestamp
+        ? a.createdAt.toMillis()
+        : typeof a.createdAt === "string"
+          ? new Date(a.createdAt).getTime()
+          : 0;
+      const bTime = b.createdAt instanceof Timestamp
+        ? b.createdAt.toMillis()
+        : typeof b.createdAt === "string"
+          ? new Date(b.createdAt).getTime()
+          : 0;
+      return bTime - aTime;
+    });
+    setNotifications(data)
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -36,19 +62,7 @@ export default function UserNavLinks() {
           setAccountType(data.accountType || null)
           setCanBook(!!data.canBook)
         }
-        const fetchNotifications = async (uid: string) => {
-          const raw = await getNotificationsForUser(uid)
-          const data: Notification[] = raw.map((n: Partial<Notification> & { id: string }) => ({
-            id: n.id,
-            message: n.message ?? "",
-            lessonDate: n.lessonDate,
-            createdAt: n.createdAt,
-            read: n.read ?? false
-          }))
-          data.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
-          setNotifications(data)
-        }
-        if (user) fetchNotifications(user.uid)
+        await fetchNotifications(user.uid)
       } else {
         setLoggedIn(false)
         setAccountType(null)
@@ -150,14 +164,15 @@ export default function UserNavLinks() {
             <button
               className="relative p-2 rounded hover:bg-gray-200"
               onClick={async () => {
-                setShowNotifications(prev => !prev)
-                if (!showNotifications) {
-                  // oznacz wszystkie jako przeczytane
-                  for (const n of notifications.filter(n => !n.read)) {
-                    await markAsRead(n.id)
+                setShowNotifications(prev => {
+                  if (!prev) {
+                    for (const n of notifications.filter(n => !n.read)) {
+                      markAsRead(n.id)
+                    }
+                    setNotifications(prevN => prevN.map(n => ({ ...n, read: true })))
                   }
-                  setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-                }
+                  return !prev
+                })
               }}
             >
               <BellIcon className="w-6 h-6 text-gray-700" />
@@ -168,7 +183,7 @@ export default function UserNavLinks() {
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-64 max-h-60 overflow-y-auto bg-white border rounded shadow-lg z-50">
+              <div className="fixed right-4 mt-2 w-64 max-h-60 overflow-y-auto bg-white border rounded shadow-lg z-50">
                 {notifications.length === 0 ? (
                   <p className="p-2 text-gray-500 text-sm">Brak powiadomień</p>
                 ) : (
@@ -179,15 +194,21 @@ export default function UserNavLinks() {
                           {n.message}
                           {n.lessonDate && (
                             <div className="text-xs text-gray-400">
-                              {new Date(n.lessonDate.seconds * 1000).toLocaleString('pl-PL')}
+                              {n.lessonDate instanceof Timestamp
+                                ? n.lessonDate.toDate().toLocaleString('pl-PL')
+                                : n.lessonDate && "seconds" in n.lessonDate
+                                  ? new Date(n.lessonDate.seconds * 1000).toLocaleString('pl-PL')
+                                  : ""}
                             </div>
                           )}
                         </div>
                         {n.createdAt && (
                           <div className="text-xs text-gray-400">
-                            {n.createdAt.seconds
-                              ? new Date(n.createdAt.seconds * 1000).toLocaleString('pl-PL')
-                              : ''}
+                            {n.createdAt instanceof Timestamp
+                              ? n.createdAt.toDate().toLocaleString('pl-PL')
+                              : n.createdAt && "seconds" in n.createdAt
+                                ? new Date(n.createdAt.seconds * 1000).toLocaleString('pl-PL')
+                                : ""}
                           </div>
                         )}
                       </li>
