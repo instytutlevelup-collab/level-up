@@ -149,16 +149,24 @@ export default function LessonsPage() {
         }
 
         allBookings.sort((a, b) => {
-          const isACompleted = a.status === "completed"
-          const isBCompleted = b.status === "completed"
+  const now = new Date().getTime()
 
-          if (isACompleted && !isBCompleted) return 1
-          if (!isACompleted && isBCompleted) return -1
+  const aDate = a.fullDate ? new Date(`${a.fullDate}T${a.time}:00`).getTime() : 0
+  const bDate = b.fullDate ? new Date(`${b.fullDate}T${b.time}:00`).getTime() : 0
 
-          const dateA = new Date(`${a.fullDate}T${a.time}:00`).getTime()
-          const dateB = new Date(`${b.fullDate}T${b.time}:00`).getTime()
-          return dateA - dateB
-        })
+  const isAFinished =
+    aDate < now &&
+    ["completed", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup", "makeup_used"].includes(a.status ?? "")
+
+  const isBFinished =
+    bDate < now &&
+    ["completed", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup", "makeup_used"].includes(b.status ?? "")
+
+  if (isAFinished && !isBFinished) return 1
+  if (!isAFinished && isBFinished) return -1
+
+  return aDate - bDate
+})
 
         // Oznacz lekcje, które już się odbyły
         const now = new Date()
