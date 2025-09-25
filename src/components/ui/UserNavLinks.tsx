@@ -196,8 +196,8 @@ export default function UserNavLinks() {
                             <div className="text-xs text-gray-400">
                               {n.lessonDate instanceof Timestamp
                                 ? n.lessonDate.toDate().toLocaleString('pl-PL')
-                                : n.lessonDate && "seconds" in n.lessonDate
-                                  ? new Date(n.lessonDate.seconds * 1000).toLocaleString('pl-PL')
+                                : typeof n.lessonDate === "string"
+                                  ? new Date(n.lessonDate).toLocaleString('pl-PL')
                                   : ""}
                             </div>
                           )}
@@ -206,8 +206,8 @@ export default function UserNavLinks() {
                           <div className="text-xs text-gray-400">
                             {n.createdAt instanceof Timestamp
                               ? n.createdAt.toDate().toLocaleString('pl-PL')
-                              : n.createdAt && "seconds" in n.createdAt
-                                ? new Date(n.createdAt.seconds * 1000).toLocaleString('pl-PL')
+                              : typeof n.createdAt === "string"
+                                ? new Date(n.createdAt).toLocaleString('pl-PL')
                                 : ""}
                           </div>
                         )}
