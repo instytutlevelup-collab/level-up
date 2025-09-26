@@ -72,7 +72,7 @@ export default function LessonsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedStudent, setSelectedStudent] = useState("")
-  const [studentOptions, setStudentOptions] = useState<string[]>([])
+  const [studentOptions, setStudentOptions] = useState<{ id: string; name: string }[]>([])
   const [selectedTutor, setSelectedTutor] = useState("")
   const [tutorOptions, setTutorOptions] = useState<string[]>([])
   // Nowy stan do wyboru miesiąca
@@ -191,14 +191,21 @@ export default function LessonsPage() {
 
         setBookings(allBookings)
         // Ustaw studentOptions i tutorOptions dla admina
+        const students = Array.from(
+          new Map(
+            allBookings
+              .filter(b => !!b.studentId && !!b.studentName)
+              .map(b => [b.studentId, { id: b.studentId, name: b.studentName }])
+          ).values()
+        ).sort((a, b) => {
+          const aFirst = a.name.split(" ")[0]
+          const bFirst = b.name.split(" ")[0]
+          return aFirst.localeCompare(bFirst, "pl")
+        })
+        setStudentOptions(students)
         if (currentUser.accountType === "admin") {
-          const studentNames = Array.from(new Set(allBookings.map(b => b.studentName).filter((name): name is string => !!name)))
-          setStudentOptions(studentNames)
           const tutorNames = Array.from(new Set(allBookings.map(b => b.tutorName).filter((name): name is string => !!name)))
           setTutorOptions(tutorNames)
-        } else {
-          const names = Array.from(new Set(allBookings.map(b => b.studentName).filter((name): name is string => !!name)))
-          setStudentOptions(names)
         }
       } catch (error) {
         console.error("Błąd podczas pobierania lekcji:", error)
@@ -326,7 +333,7 @@ export default function LessonsPage() {
     { value: "cancelled_in_time", label: "Do odrobienia" },
     { value: "cancelled_late", label: "Odwołana po terminie" },
     { value: "cancelled_by_tutor", label: "Do odrobienia" },
-    { value: "makeup", label: "Zaplanowana" },
+    { value: "makeup", label: "Nowy termin" },
     { value: "makeup_used", label: "Wybrano nowy termin" },
   ]
   const roleOptions = [
@@ -403,9 +410,9 @@ export default function LessonsPage() {
               className="flex-grow px-4 py-2 border border-gray-300 rounded-md shadow-sm"
             >
               <option value="">Wszyscy uczniowie</option>
-              {studentOptions.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+              {studentOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </select>
@@ -463,7 +470,7 @@ export default function LessonsPage() {
                 </TableRow>
               ) : (
                 bookings
-                  .filter((b) => !selectedStudent || b.studentName === selectedStudent)
+                  .filter((b) => !selectedStudent || b.studentId === selectedStudent)
                   .filter((b) => !selectedTutor || b.tutorName === selectedTutor)
                   .filter((b) => {
                     if (!selectedMonth) return true;
@@ -562,7 +569,7 @@ export default function LessonsPage() {
                                 }
                               >
                                 {b.status === "makeup"
-                                  ? "Zaplanowana"
+                                  ? "Nowy termin"
                                   : b.status === "makeup_used"
                                   ? "Wybrano nowy termin"
                                   : b.status === "cancelled_in_time"
@@ -597,7 +604,7 @@ export default function LessonsPage() {
                               }
                             >
                               {b.status === "makeup"
-                                ? "Zaplanowana"
+                                ? "Nowy termin"
                                 : b.status === "makeup_used"
                                 ? "Wybrano nowy termin"
                                 : b.status === "cancelled_in_time"
