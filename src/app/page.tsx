@@ -11,7 +11,7 @@ export default function HomePage() {
       {/* Główna sekcja powitalna */}
       <div className="max-w-3xl w-full text-center p-8 bg-white shadow-xl rounded-3xl mb-12">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-4">
-          Wiedza to Twój game changer
+          Wiedza to Twój game changer🎓
         </h1>
 
         <p className="text-gray-600 text-lg mb-8">
@@ -31,7 +31,7 @@ export default function HomePage() {
 
       {/* Sekcja z trzema kartami */}
       <section className="w-full max-w-5xl">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">Zapisy na rok szkolny 2025/2026 ruszyły!</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">📅 Zaplanuj zajęcia od października – miejsca już dostępne!</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl shadow-lg p-6 text-center">
