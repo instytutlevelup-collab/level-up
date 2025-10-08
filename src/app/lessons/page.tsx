@@ -334,7 +334,7 @@ export default function LessonsPage() {
     { value: "cancelled_late", label: "Odwołana po terminie" },
     { value: "cancelled_by_tutor", label: "Do odrobienia" },
     { value: "makeup", label: "Zaplanowana" },
-    { value: "makeup_used", label: "Wybrano nowy termin" },
+    { value: "makeup_used", label: "Wybrano nowy termin/rozliczone" },
   ]
   const roleOptions = [
     { value: "parent", label: "Rodzic" },
@@ -571,7 +571,7 @@ export default function LessonsPage() {
                                 {b.status === "makeup"
                                   ? "Zaplanowana"
                                   : b.status === "makeup_used"
-                                  ? "Wybrano nowy termin"
+                                  ? "Wybrano nowy termin/rozliczone"
                                   : b.status === "cancelled_in_time"
                                   ? "Do odrobienia"
                                   : b.status === "cancelled_late"
@@ -606,7 +606,7 @@ export default function LessonsPage() {
                               {b.status === "makeup"
                                 ? "Zaplanowana"
                                 : b.status === "makeup_used"
-                                ? "Wybrano nowy termin"
+                                ? "Wybrano nowy termin/rozliczone"
                                 : b.status === "cancelled_in_time"
                                 ? "Do odrobienia"
                                 : b.status === "cancelled_late"
