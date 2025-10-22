@@ -246,6 +246,17 @@ useEffect(() => {
   const isSlotTaken = (tutorId: string, date: string, time: string, duration: number, bufferBeforeParam?: number, bufferAfterParam?: number) => {
     const givenDate = new Date(date)
     const givenDay = daysOfWeek[givenDate.getDay()]?.value
+    // PATCH: jeśli istnieje odwołana lub odrobiona rezerwacja jednorazowa dla tej daty i godziny, traktuj slot jako wolny
+    const hasCancelledOverride = bookings.some(b =>
+      !b.isRecurring &&
+      ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "") &&
+      b.tutorId === tutorId &&
+      b.fullDate === date &&
+      b.time === time
+    )
+    if (hasCancelledOverride) {
+      return false // pozwól rezerwować w tym terminie
+    }
     // statuses to ignore as not active
     const ignoredStatuses = ["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used"];
     // Check bookings
@@ -285,6 +296,15 @@ useEffect(() => {
 
       // Sprawdzenie rezerwacji cyklicznej (weekly)
       if (b.isRecurring && b.day === givenDay && schoolYearStart && schoolYearEnd) {
+  // jeśli ta konkretna data cyklicznej lekcji została odwołana — pomiń
+  if (
+    ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "") &&
+    b.fullDate === date
+  ) {
+    return false;
+  }
+
+  if (ignoredStatuses.includes(b.status ?? "")) return false;
         const d = new Date(date ?? "")
         if (d < schoolYearStart || d > schoolYearEnd) return false
         if (!b.time) return false;
@@ -307,6 +327,18 @@ useEffect(() => {
 
       return false
     })
+    // Sprawdź, czy istnieje odwołana rezerwacja jednorazowa (czyli wyjątek od cyklicznej)
+    const cancelledSameSlot = bookings.some(b =>
+      !b.isRecurring &&
+      ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "") &&
+      b.tutorId === tutorId &&
+      b.fullDate === date &&
+      b.time === time
+    )
+
+    if (cancelledSameSlot) {
+      return false
+    }
     if (taken) return true;
     // Check vacations for this tutor
     const slotStart = date + "T" + time;
@@ -350,7 +382,6 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return
       if (a.type === "one-time") {
-        // PATCH: Replace block with new logic
         const date = a.date
         if (new Date(date) >= todayMid) {
           const [sh, sm] = (a.startTime || "").split(":").map(Number)
@@ -360,18 +391,22 @@ useEffect(() => {
 
           let available = false
           for (let t = start; t + duration <= end; t += 10) {
-            // jeśli to dzisiaj, pomiń godziny, które już minęły
             if (date === todayStr && t <= nowMins) continue
             const h = String(Math.floor(t / 60)).padStart(2, "0")
             const m = String(t % 60).padStart(2, "0")
             const timeStr = `${h}:${m}`
-
-          if (!isSlotTaken(tutorId, date || "", timeStr, duration, bufferBefore, bufferAfter)) {
-            available = true
-            break
+            if (
+              !isSlotTaken(tutorId, date || "", timeStr, duration, bufferBefore, bufferAfter) ||
+              bookings.some(b =>
+                b.isRecurring &&
+                b.fullDate === date &&
+                ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "")
+              )
+            ) {
+              available = true
+              break
+            }
           }
-          }
-
           if (available) {
             datesSet.add(date)
           }
@@ -385,7 +420,6 @@ useEffect(() => {
         const diff = (dayIndex - firstDate.getDay() + 7) % 7
         firstDate.setDate(firstDate.getDate() + diff)
         for (let d = new Date(firstDate); d <= schoolYearEnd; d.setDate(d.getDate() + 7)) {
-          // PATCH: Use todayMid for comparison
           if (d >= todayMid) {
             const dateStr = format(new Date(d), "yyyy-MM-dd") ?? ""
             const [sh, sm] = (a.startTime || "").split(":").map(Number)
@@ -394,12 +428,21 @@ useEffect(() => {
             const end = eh * 60 + em
             let available = false
             for (let t = start; t + duration <= end; t += 10) {
-              // PATCH: skip past times for today
               if (dateStr === todayStr && t <= nowMins) continue
               const h = String(Math.floor(t / 60)).padStart(2, "0")
               const m = String(t % 60).padStart(2, "0")
               const timeStr = `${h}:${m}`
-              if (!isSlotTaken(tutorId, dateStr || "", timeStr || "", duration)) {
+              // PATCH: allow slot if not taken, OR if there is a recurring booking for this slot on this date that is cancelled,
+              // but for weekly, cancelled recurring must match day
+              if (
+                !isSlotTaken(tutorId, dateStr || "", timeStr || "", duration) ||
+                bookings.some(b =>
+                  b.isRecurring &&
+                  String(b.day).toLowerCase() === String(a.day).toLowerCase() &&
+                  b.fullDate === dateStr &&
+                  ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "")
+                )
+              ) {
                 available = true
                 break
               }
@@ -429,7 +472,7 @@ useEffect(() => {
       }
       if (type === "one-time") {
         if (!specificDate) return false
-        if (a.type === "one-time" && a.date === specificDate) return true
+        if (a.type === "one-time" && (a.date === specificDate || a.fullDate === specificDate)) return true
         if (a.type === "weekly") {
           const selectedDate = new Date(specificDate)
           const selectedDayValue = daysOfWeek[selectedDate.getDay()]?.value
@@ -464,7 +507,6 @@ useEffect(() => {
       const start = sh * 60 + sm
       const end = eh * 60 + em
       for (let t = start; t + duration <= end; t += 10) {
-        // jeśli to dzisiaj, pomiń godziny, które już minęły
         if (fullDate === todayStr && t <= nowMins) continue
         const h = String(Math.floor(t / 60)).padStart(2, "0")
         const m = String(t % 60).padStart(2, "0")
@@ -484,7 +526,26 @@ useEffect(() => {
           }
         }
         if (inVacation) continue;
-        if (!isSlotTaken(tutorId || "", fullDate || "", timeStr || "", duration)) {
+        // PATCH: allow slot if not taken, OR if there is a recurring booking for this slot on this date that is cancelled
+        // For weekly, require matching day
+        if (
+  !isSlotTaken(tutorId || "", fullDate || "", timeStr || "", duration) ||
+  (type === "weekly"
+    ? bookings.some(b =>
+        b.isRecurring &&
+        String(b.day).toLowerCase() === String(a.day).toLowerCase() &&
+        b.fullDate === fullDate &&
+        b.time === timeStr &&
+        ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
+      )
+    : bookings.some(b =>
+        b.isRecurring &&
+        b.fullDate === fullDate &&
+        b.time === timeStr &&
+        ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
+      )
+  )
+        ) {
           slots.push(timeStr)
         }
       }

@@ -676,7 +676,7 @@ export default function LessonsPage() {
                               </select>
                             ) : (
                               <span>
-                                {b.status?.startsWith("cancelled")
+                                {(b.status?.startsWith("cancelled") || b.status === "makeup_used")
                                   ? b.cancelledByRole
                                     ? b.cancelledByRole === "parent"
                                       ? "Rodzic"
@@ -692,7 +692,7 @@ export default function LessonsPage() {
                               </span>
                             )
                           ) : (
-                            b.status?.startsWith("cancelled")
+                            (b.status?.startsWith("cancelled") || b.status === "makeup_used")
                               ? b.cancelledByRole === "parent"
                                 ? "Rodzic"
                                 : b.cancelledByRole === "student"
