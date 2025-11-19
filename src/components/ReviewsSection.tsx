@@ -1,12 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+interface Review {
+  id: string;
+  firstName?: string;
+  role?: string;
+  stars?: number;
+  comment?: string;
+  approved?: boolean;
+}
+
 export default function ReviewsSection() {
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -39,7 +48,7 @@ export default function ReviewsSection() {
               <p className="font-semibold">{r.firstName}</p>
               <p className="text-sm text-gray-500 mb-2">{r.role}</p>
               <div className="flex items-center mb-2">
-                {"⭐".repeat(r.stars)}{"☆".repeat(5 - r.stars)}
+                {"⭐".repeat(r.stars ?? 0)}{"☆".repeat(5 - (r.stars ?? 0))}
               </div>
               <p className="text-gray-700">{r.comment}</p>
             </CardContent>

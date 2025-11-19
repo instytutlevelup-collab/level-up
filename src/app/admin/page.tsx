@@ -39,7 +39,16 @@ export default function AdminPage() {
   const [endDate, setEndDate] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
 
-  const [pendingReviews, setPendingReviews] = useState<any[]>([])
+  interface Review {
+    id: string
+    firstName?: string
+    lastName?: string
+    stars?: number
+    comment?: string
+    approved?: boolean
+    rejected?: boolean
+  }
+  const [pendingReviews, setPendingReviews] = useState<Review[]>([])
   const [loadingReviews, setLoadingReviews] = useState(true)
 
   // Hook dla auth
@@ -67,6 +76,20 @@ export default function AdminPage() {
 
   // Inne useEffect dla pobierania danych
   useEffect(() => {
+    async function fetchPendingReviews() {
+      setLoadingReviews(true)
+      try {
+        const snapshot = await getDocs(collection(db, 'reviews'))
+        const reviews = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Review))
+          .filter(r => !r.approved) // tylko opinie niezatwierdzone
+        setPendingReviews(reviews)
+      } catch (error) {
+        console.error('Błąd pobierania opinii:', error)
+      }
+      setLoadingReviews(false)
+    }
+
     loadSchoolYearSettings()
     fetchSubjects()
     fetchPendingReviews()
@@ -111,21 +134,6 @@ export default function AdminPage() {
     setSubjects(snapshot.docs.map(doc => doc.data().name))
   }
 
-  async function fetchPendingReviews() {
-    setLoadingReviews(true)
-    try {
-      const snapshot = await getDocs(
-        collection(db, 'reviews')
-      )
-      const reviews = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(r => !r.approved) // tylko opinie niezatwierdzone
-      setPendingReviews(reviews)
-    } catch (error) {
-      console.error('Błąd pobierania opinii:', error)
-    }
-    setLoadingReviews(false)
-  }
 
   const approveReview = async (reviewId: string) => {
     try {

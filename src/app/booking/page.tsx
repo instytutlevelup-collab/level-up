@@ -402,7 +402,6 @@ useEffect(() => {
           const start = sh * 60 + sm
           const end = eh * 60 + em
 
-          let available = false
           for (let t = start; t + duration <= end; t += 10) {
             if (date === todayStr && t <= nowMins) continue
             const h = String(Math.floor(t / 60)).padStart(2, "0")
@@ -416,7 +415,6 @@ useEffect(() => {
                 ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "")
               )
             ) {
-              available = true
               break
             }
           }
@@ -437,7 +435,6 @@ useEffect(() => {
             const [eh, em] = (a.endTime || "").split(":").map(Number)
             const start = sh * 60 + sm
             const end = eh * 60 + em
-            let available = false
             for (let t = start; t + duration <= end; t += 10) {
               if (dateStr === todayStr && t <= nowMins) continue
               const h = String(Math.floor(t / 60)).padStart(2, "0")
@@ -454,7 +451,6 @@ useEffect(() => {
                   ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "")
                 )
               ) {
-                available = true
                 break
               }
             }
