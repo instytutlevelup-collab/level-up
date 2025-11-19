@@ -208,15 +208,16 @@ useEffect(() => {
         getDocs(collection(db, "vacations")),
       ]);
       setAvailability(avail.docs.map(doc => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          lessonType: Array.isArray(data.lessonType)
-            ? data.lessonType.map((m: string) => normalizeMode(m))
-            : [],
-        }
-      }))
+  const data = doc.data()
+  return {
+    id: doc.id,
+    ...data,
+    day: (data.day || "").toLowerCase().trim(),
+    lessonType: Array.isArray(data.lessonType)
+      ? data.lessonType.map((m: string) => normalizeMode(m))
+      : [],
+  }
+}))
       setBookings(books.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)))
       setTutors(tutorsData.docs.map(doc => ({ id: doc.id, ...doc.data() })))
       setVacations(vacationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
@@ -382,7 +383,19 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return
       if (a.type === "one-time") {
-        const date = a.date
+        let date = "";
+        // Firestore Timestamp
+        if (a.date?.toDate) {
+          date = format(a.date.toDate(), "yyyy-MM-dd");
+        }
+        // Already a string
+        else if (typeof a.date === "string") {
+          date = a.date;
+        }
+        // If neither, skip
+        else {
+          return;
+        }
         if (new Date(date) >= todayMid) {
           const [sh, sm] = (a.startTime || "").split(":").map(Number)
           const [eh, em] = (a.endTime || "").split(":").map(Number)
@@ -407,9 +420,7 @@ useEffect(() => {
               break
             }
           }
-          if (available) {
-            datesSet.add(date)
-          }
+          datesSet.add(date)
         }
       }
       if (a.type === "weekly") {
@@ -447,9 +458,7 @@ useEffect(() => {
                 break
               }
             }
-            if (available) {
-              datesSet.add(dateStr)
-            }
+            datesSet.add(dateStr)
           }
         }
       }
@@ -467,17 +476,29 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return false
       if (type === "weekly") {
-        // Porównuj day w lowerCase
-        return a.type === "weekly" && String(a.day).toLowerCase() === String(day).toLowerCase()
+        // Porównuj day w lowerCase i trim
+        return a.type === "weekly" &&
+          String(a.day).toLowerCase().trim() === String(day).toLowerCase().trim()
       }
       if (type === "one-time") {
         if (!specificDate) return false
-        if (a.type === "one-time" && (a.date === specificDate || a.fullDate === specificDate)) return true
+        if (a.type === "one-time") {
+          let oneTimeDate = ""
+          // Jeśli Firestore zwrócił timestamp
+          if (a.date?.toDate) {
+            oneTimeDate = format(a.date.toDate(), "yyyy-MM-dd")
+          }
+          // Jeśli zapis był stringiem
+          else if (typeof a.date === "string") {
+            oneTimeDate = a.date
+          }
+          if (oneTimeDate === specificDate) return true
+        }
         if (a.type === "weekly") {
           const selectedDate = new Date(specificDate)
           const selectedDayValue = daysOfWeek[selectedDate.getDay()]?.value
-          // Porównaj oba w lowerCase
-          return String(a.day).toLowerCase() === selectedDayValue?.toLowerCase()
+          // Porównaj oba w lowerCase i trim
+          return String(a.day).toLowerCase().trim() === String(selectedDayValue).toLowerCase().trim()
         }
       }
       return false
@@ -501,6 +522,8 @@ useEffect(() => {
     const now = new Date()
     const nowMins = now.getHours() * 60 + now.getMinutes()
     const todayStr = format(now, "yyyy-MM-dd")
+    // PATCH: Normalize day for isSlotTaken
+    const normalizedDay = day ? day.toLowerCase().trim() : ""
     filtered.forEach(a => {
       const [sh, sm] = (a.startTime || "").split(":").map(Number)
       const [eh, em] = (a.endTime || "").split(":").map(Number)
@@ -529,22 +552,22 @@ useEffect(() => {
         // PATCH: allow slot if not taken, OR if there is a recurring booking for this slot on this date that is cancelled
         // For weekly, require matching day
         if (
-  !isSlotTaken(tutorId || "", fullDate || "", timeStr || "", duration) ||
-  (type === "weekly"
-    ? bookings.some(b =>
-        b.isRecurring &&
-        String(b.day).toLowerCase() === String(a.day).toLowerCase() &&
-        b.fullDate === fullDate &&
-        b.time === timeStr &&
-        ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
-      )
-    : bookings.some(b =>
-        b.isRecurring &&
-        b.fullDate === fullDate &&
-        b.time === timeStr &&
-        ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
-      )
-  )
+          !isSlotTaken(tutorId, fullDate, timeStr, duration, bufferBefore, bufferAfter) ||
+          (type === "weekly"
+            ? bookings.some(b =>
+                b.isRecurring &&
+                String(b.day).toLowerCase() === normalizedDay &&
+                b.fullDate === fullDate &&
+                b.time === timeStr &&
+                ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
+              )
+            : bookings.some(b =>
+                b.isRecurring &&
+                b.fullDate === fullDate &&
+                b.time === timeStr &&
+                ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
+              )
+          )
         ) {
           slots.push(timeStr)
         }

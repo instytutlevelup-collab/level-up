@@ -4,6 +4,7 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import ReviewsSection from "@/components/ReviewsSection";
 
 export default function HomePage() {
   return (
@@ -11,7 +12,7 @@ export default function HomePage() {
       {/* Główna sekcja powitalna */}
       <div className="max-w-3xl w-full text-center p-8 bg-white shadow-xl rounded-3xl mb-12">
         <h1 className="text-4xl font-extrabold text-gray-800 mb-4">
-          Wiedza to Twój game changer🎓
+          Wiedza to Twój game changer🎓~
         </h1>
 
         <p className="text-gray-600 text-lg mb-8">
@@ -56,6 +57,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      <ReviewsSection />
     </main>
   )
 }

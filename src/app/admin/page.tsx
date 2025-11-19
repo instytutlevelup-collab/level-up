@@ -39,6 +39,9 @@ export default function AdminPage() {
   const [endDate, setEndDate] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
 
+  const [pendingReviews, setPendingReviews] = useState<any[]>([])
+  const [loadingReviews, setLoadingReviews] = useState(true)
+
   // Hook dla auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -66,6 +69,7 @@ export default function AdminPage() {
   useEffect(() => {
     loadSchoolYearSettings()
     fetchSubjects()
+    fetchPendingReviews()
   }, [])
 
   if (loadingAuth) return <p>Ładowanie...</p>
@@ -105,6 +109,46 @@ export default function AdminPage() {
   async function fetchSubjects() {
     const snapshot = await getDocs(collection(db, 'subjects'))
     setSubjects(snapshot.docs.map(doc => doc.data().name))
+  }
+
+  async function fetchPendingReviews() {
+    setLoadingReviews(true)
+    try {
+      const snapshot = await getDocs(
+        collection(db, 'reviews')
+      )
+      const reviews = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(r => !r.approved) // tylko opinie niezatwierdzone
+      setPendingReviews(reviews)
+    } catch (error) {
+      console.error('Błąd pobierania opinii:', error)
+    }
+    setLoadingReviews(false)
+  }
+
+  const approveReview = async (reviewId: string) => {
+    try {
+      const reviewRef = doc(db, 'reviews', reviewId)
+      await setDoc(reviewRef, { approved: true }, { merge: true })
+      setPendingReviews(prev => prev.filter(r => r.id !== reviewId))
+      alert('Opinia została zatwierdzona.')
+    } catch (error) {
+      console.error('Błąd zatwierdzania opinii:', error)
+      alert('Nie udało się zatwierdzić opinii.')
+    }
+  }
+
+  const rejectReview = async (reviewId: string) => {
+    try {
+      const reviewRef = doc(db, 'reviews', reviewId)
+      await setDoc(reviewRef, { approved: false, rejected: true }, { merge: true })
+      setPendingReviews(prev => prev.filter(r => r.id !== reviewId))
+      alert('Opinia została odrzucona.')
+    } catch (error) {
+      console.error('Błąd odrzucania opinii:', error)
+      alert('Nie udało się odrzucić opinii.')
+    }
   }
 
   const addSubject = async () => {
@@ -170,6 +214,37 @@ export default function AdminPage() {
           <Button onClick={saveSchoolYearSettings} disabled={savingSettings}>
             {savingSettings ? 'Zapisuję...' : 'Zapisz ustawienia'}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Sekcja opinii do zatwierdzenia */}
+      <Card className="mb-10 p-6 border rounded-md shadow-sm w-full">
+        <CardHeader>
+          <CardTitle>Opinie do zatwierdzenia</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingReviews ? (
+            <p>Ładowanie opinii...</p>
+          ) : pendingReviews.length === 0 ? (
+            <p>Brak nowych opinii do zatwierdzenia.</p>
+          ) : (
+            <ul className="list-disc list-inside space-y-2">
+              {pendingReviews.map(review => (
+                <li key={review.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-2">
+                  <div>
+                    <p>
+                      <strong>{review.firstName || 'Anonim'} {review.lastName || ''}</strong> 
+                      {review.stars ? Array.from({ length: review.stars }, () => '⭐').join('') : ''}: {review.comment}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => approveReview(review.id)}>Zatwierdź</Button>
+                    <Button variant="destructive" onClick={() => rejectReview(review.id)}>Odrzuć</Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

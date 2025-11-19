@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Instytut Wiedzy Level Up! - Twój upgrade do lepszych wyników',
   description:
-    'Aplikacja do rezerwacji terminów korepetycji z możliwością powiązania kont ucznia i rodzica',
+    'Aplikacja do rezerwacji terminów korepetycji',
 }
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
           <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Instytut Wiedzy &quot;Level Up!&quot;</h1>
+                <h1 className="text-xl font-bold text-gray-900">Instytut Wiedzy Level Up!</h1>
               </div>
               <div className="block">
                 <div className="ml-2 md:ml-10 flex space-x-4 overflow-x-auto no-scrollbar">
@@ -41,7 +41,7 @@ export default function RootLayout({
         <footer className="bg-white border-t border-gray-200">
           <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <p className="text-center text-gray-500 text-sm">
-              © 2025 Instytut Wiedzy &quot;Level Up!&quot;. E-dziennik dla szkoły korepetycji.
+              © 2025 Instytut Wiedzy Level Up!. E-dziennik dla szkoły korepetycji.
             </p>
           </div>
         </footer>
