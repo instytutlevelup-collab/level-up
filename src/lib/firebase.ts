@@ -5,12 +5,12 @@ import { getAuth } from 'firebase/auth'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBI9P8O1OD4FXmi4kJgMb2Ecgk6v-q7Wsw",
-  authDomain: "eduplan-cb8fb.firebaseapp.com",
-  projectId: "eduplan-cb8fb",
-  storageBucket: "eduplan-cb8fb.appspot.com", // ✅ poprawiono
-  messagingSenderId: "171978303054",
-  appId: "1:171978303054:web:5de6b6ce4e2b89e9b5c51f"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!
 }
 
 const app = initializeApp(firebaseConfig)
