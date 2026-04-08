@@ -1,32 +1,32 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { notifyBooking } from "@/lib/notifications"
+import { useEffect, useState } from "react"
 
-import { db, auth } from "@/lib/firebase"
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  doc,
-  updateDoc,
-  DocumentData,
-} from "firebase/firestore"
-import { onAuthStateChanged } from "firebase/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
-import { format, parseISO, addMinutes } from "date-fns"
+import { auth, db } from "@/lib/firebase"
+import { addMinutes, format, parseISO } from "date-fns"
 import { pl } from "date-fns/locale"
+import { onAuthStateChanged } from "firebase/auth"
+import {
+  addDoc,
+  collection,
+  doc,
+  DocumentData,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore"
 
 const daysOfWeek = [
   { label: "Niedziela", value: "sunday" },
@@ -247,6 +247,10 @@ useEffect(() => {
   const isSlotTaken = (tutorId: string, date: string, time: string, duration: number, bufferBeforeParam?: number, bufferAfterParam?: number) => {
     const givenDate = new Date(date)
     const givenDay = daysOfWeek[givenDate.getDay()]?.value
+    // DEBUG: pokaż wszystkie wejściowe informacje
+    /* console.log("Checking slot:", { 
+      tutorId, date, time, duration, bufferBeforeParam, bufferAfterParam 
+    }); */
     // PATCH: jeśli istnieje odwołana lub odrobiona rezerwacja jednorazowa dla tej daty i godziny, traktuj slot jako wolny
     const hasCancelledOverride = bookings.some(b =>
       !b.isRecurring &&
@@ -290,6 +294,8 @@ useEffect(() => {
         const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
         // Conflict if newBlockStart < blockEnd && newBlockEnd > blockStart
         if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
+          // Log blocked slot for one-time booking here, where newBlockStart/newBlockEnd are defined
+          console.log("Slot blocked by one-time booking:", { id: b.id, ...b });
           return true
         }
         return false
@@ -321,6 +327,8 @@ useEffect(() => {
         const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore)
         const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
         if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
+          // Log blocked slot for recurring booking
+          console.log("Slot blocked by recurring booking:", { id: b.id, ...b });
           return true
         }
         return false

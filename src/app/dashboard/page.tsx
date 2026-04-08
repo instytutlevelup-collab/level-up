@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { db, auth } from '@/lib/firebase'
-import { doc, collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Button } from '@/components/ui/button'
+import Link from "next/link"
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts'
 import ChildrenListContent from '@/components/ChildrenListContent'
 import { deleteDoc } from 'firebase/firestore'
-import { useCallback } from 'react'
 
 interface User {
   id: string
@@ -20,11 +22,7 @@ interface User {
   accountType: 'student' | 'parent' | 'tutor' | 'admin'
   subjects?: string[]
   grade?: string
-  linkedAccounts?: { studentId: string; firstName?: string; lastName?: string; studentName?: string }[]
-  videoLink?: string
-  notebookLink?: string
-  bookLink?: string
-  classroomLink?: string
+  linkedAccounts?: { studentId: string; firstName: string; lastName: string }[]
 }
 
 interface Lesson {
@@ -37,33 +35,22 @@ interface Lesson {
   date: string
   fullDate?: string
   time: string
-  status: "scheduled" | "completed" | "cancelled" | "cancelled_in_time" | "cancelled_late" | "cancelled_by_tutor" | "makeup" | "makeup_used"
+  status: 'scheduled' | 'completed' | 'cancelled'
   grade?: number
   notes?: string
   rawStatus?: string
-  cancelledBy?: 'student' | 'parent' | 'tutor'
-  cancelledLate?: boolean
-}
-
-interface Announcement {
-  id: string
-  text: string
-  authorName: string
-  authorId: string
-  createdAt?: { seconds: number; nanoseconds: number }
-  status: 'draft' | 'published'
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // --- ANNOUNCEMENTS STATE ---
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [announcements, setAnnouncements] = useState<any[]>([])
   const [newAnnouncement, setNewAnnouncement] = useState('')
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false)
-  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   useEffect(() => {
   const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -92,7 +79,7 @@ export default function DashboardPage() {
       setAnnouncements(
         snapshot.docs.map(docSnap => ({
           id: docSnap.id,
-          ...(docSnap.data() as Omit<Announcement, 'id'>)
+          ...docSnap.data()
         }))
       )
     })
@@ -128,6 +115,7 @@ export default function DashboardPage() {
 
         const snapshot = await getDocs(q)
         // debug: ile dokumentów pobrano
+        // eslint-disable-next-line no-console
         console.debug('bookings snapshot size:', snapshot.size)
 
         const fetchedLessons = snapshot.docs.map(docSnap => {
@@ -135,22 +123,12 @@ export default function DashboardPage() {
           const rawStatus = (data.status || '').toString()
           const rs = rawStatus.toLowerCase()
 
-          // Normalizacja statusów do pełnego zakresu Lesson["status"]
-          let status: Lesson["status"] = 'scheduled'
-
-          if (['completed', 'realized', 'zrealizowane', 'done'].includes(rs)) {
+          // Normalizacja statusów (dostosuj jeśli masz inne nazwy statusów w Firestore)
+          let status: 'scheduled' | 'completed' | 'cancelled' = 'scheduled'
+          if (rs === 'completed' || rs === 'realized' || rs === 'zrealizowane' || rs === 'done') {
             status = 'completed'
-          } else if (['cancelled_late', 'late', 'po_terminie'].some(x => rs.includes(x))) {
-            status = 'cancelled_late'
-          } else if (['cancelled_in_time', 'cancel_in', 'odwo', 'makeup', 'makeup_used', 'cancelled_by_tutor'].some(x => rs.includes(x))) {
-            // Rozróżniamy subtelniejsze typy odwołań
-            if (['makeup', 'makeup_used'].some(x => rs.includes(x))) {
-              status = rs.includes('makeup_used') ? 'makeup_used' : 'makeup'
-            } else if (['cancelled_by_tutor'].some(x => rs.includes(x))) {
-              status = 'cancelled_by_tutor'
-            } else {
-              status = 'cancelled_in_time'
-            }
+          } else if (rs.includes('cancel') || rs.includes('odwo') || rs.includes('cancelled') || rs.includes('cancel_in') || rs.includes('cancel_in_time') || rs.includes('cancelled_in_time')) {
+            status = 'cancelled'
           } else {
             status = 'scheduled'
           }
@@ -182,9 +160,11 @@ export default function DashboardPage() {
           } as Lesson & { cancelledBy?: 'student' | 'parent' | 'tutor', cancelledLate?: boolean }
         })
 
+        // eslint-disable-next-line no-console
         console.debug('fetchedLessons sample:', fetchedLessons.slice(0, 6))
         setLessons(fetchedLessons)
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Błąd podczas pobierania bookingów:', error)
       } finally {
         setIsLoading(false)
@@ -192,6 +172,28 @@ export default function DashboardPage() {
     }
     fetchLessons()
   }, [currentUser])
+
+  const getMyLessons = () => {
+    if (!currentUser) return []
+    switch (currentUser.accountType) {
+      case 'student':
+        return lessons.filter((l) => l.studentId === currentUser.id)
+      case 'tutor':
+        return lessons.filter((l) => l.tutorId === currentUser.id)
+      case 'parent':
+        const linkedIds = currentUser.linkedAccounts?.map((a) => a.studentId) || []
+        return lessons.filter((l) => linkedIds.includes(l.studentId))
+      default:
+        return lessons
+    }
+  }
+
+  const getRecentGrades = () => {
+    return getMyLessons()
+      .filter((l) => l.grade && l.status === 'completed')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+  }
 
   // --- STATE ---
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
@@ -211,22 +213,23 @@ export default function DashboardPage() {
     return months
   }
   // --- STUDENTS ---
-  const getStudentOptions = useCallback(() => {
-  if (!currentUser) return []
-  if (currentUser.accountType === 'tutor' || currentUser.accountType === 'admin') {
-    const students = Array.from(
-      new Map(
-        lessons.map((l) => [l.studentId, { id: l.studentId, name: l.studentName }])
-      ).values()
-    )
-    students.sort((a, b) => a.name.localeCompare(b.name))
-    return students
+  const getStudentOptions = () => {
+    if (!currentUser) return []
+    if (currentUser.accountType === 'tutor' || currentUser.accountType === 'admin') {
+      // Unikalni uczniowie z lekcji
+      const students = Array.from(
+        new Map(
+          lessons.map((l) => [l.studentId, { id: l.studentId, name: l.studentName }])
+        ).values()
+      )
+      students.sort((a, b) => a.name.localeCompare(b.name))
+      return students
+    }
+    return []
   }
-  return []
-}, [currentUser, lessons])
-
   const monthOptions = useMemo(() => getMonthOptions(lessons), [lessons])
-  const studentOptions = useMemo(() => getStudentOptions(), [getStudentOptions])
+  const studentOptions = useMemo(() => getStudentOptions(), [lessons, currentUser])
+
   // --- FILTERED LESSONS ---
   // Filtrowanie tylko po miesiącu i ewentualnie studencie, nie ograniczamy statusów
   const filteredLessons = useMemo(() => {
@@ -262,7 +265,7 @@ export default function DashboardPage() {
   }
 
   // --- ANNOUNCEMENTS HANDLER ---
-  const handleAddAnnouncement = async (e: React.FormEvent, status: 'published') => {
+  const handleAddAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newAnnouncement.trim() || !currentUser) return
     setIsAddingAnnouncement(true)
@@ -272,41 +275,13 @@ export default function DashboardPage() {
         authorName: `${currentUser.firstName} ${currentUser.lastName}`,
         authorId: currentUser.id,
         createdAt: serverTimestamp(),
-        status: status
       })
       setNewAnnouncement('')
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Błąd dodawania ogłoszenia:', err)
     } finally {
       setIsAddingAnnouncement(false)
-    }
-  }
-
-  const handleSaveDraft = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newAnnouncement.trim() || !currentUser) return
-    setIsSavingDraft(true)
-    try {
-      await addDoc(collection(db, 'announcements'), {
-        text: newAnnouncement.trim(),
-        authorName: `${currentUser.firstName} ${currentUser.lastName}`,
-        authorId: currentUser.id,
-        createdAt: serverTimestamp(),
-        status: 'draft'
-      })
-      setNewAnnouncement('')
-    } catch (err) {
-      console.error('Błąd zapisu wersji roboczej:', err)
-    } finally {
-      setIsSavingDraft(false)
-    }
-  }
-
-  const handlePublishAnnouncement = async (id: string) => {
-    try {
-      await updateDoc(doc(db, 'announcements', id), { status: 'published' })
-    } catch (err) {
-      console.error('Błąd publikacji ogłoszenia:', err)
     }
   }
 
@@ -320,22 +295,6 @@ export default function DashboardPage() {
     }
   }
 
-  // --- DRAFT DELETE HANDLER ---
-  const handleDeleteDraft = async (id: string) => {
-    // Only admin or tutor can delete draft
-    if (
-      !currentUser ||
-      (currentUser.accountType !== 'admin' && currentUser.accountType !== 'tutor')
-    ) {
-      return
-    }
-    try {
-      await deleteDoc(doc(db, 'announcements', id))
-    } catch (err) {
-      console.error('Błąd usuwania wersji roboczej ogłoszenia:', err)
-    }
-  }
-
   // --- STATISTICS ---
   // Statusy: 'completed', 'cancelled', 'scheduled'
   // Pola "cancelledBy" i "cancelledLate" są już mapowane z kolekcji lessons
@@ -343,18 +302,16 @@ export default function DashboardPage() {
     cancelledBy?: 'student' | 'parent' | 'tutor'
     cancelledLate?: boolean
   }
-  const lessonsWithCancel: LessonWithCancel[] = filteredLessons.map(l => ({
+  const lessonsWithCancel: LessonWithCancel[] = filteredLessons.map((l) => ({
     ...l,
-    cancelledBy: l.cancelledBy,
-    cancelledLate: l.cancelledLate,
+    cancelledBy: (l as any).cancelledBy,
+    cancelledLate: (l as any).cancelledLate,
   }))
   // Pie chart: dwa zestawy danych
   const pieData1 = [
     { name: 'Zrealizowana', value: lessonsWithCancel.filter(l => l.status === 'completed').length },
-    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled_late').length },
-    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l =>
-        l.status === 'cancelled_in_time' || l.status === 'makeup_used'
-      ).length },
+    { name: 'Odwołana po terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled' && l.cancelledLate).length },
+    { name: 'Odwołana w terminie', value: lessonsWithCancel.filter(l => l.status === 'cancelled' && !l.cancelledLate).length },
   ]
   const pieData2 = [
     { name: 'Wybrano nowy termin', value: lessonsWithCancel.filter(l => l.rawStatus === 'makeup_used').length },
@@ -365,6 +322,16 @@ export default function DashboardPage() {
   // Kolory dla wykresów
   const PIE_COLORS1 = ['#22c55e', '#ef4444', '#fbbf24']
   const PIE_COLORS2 = ['#06b6d4', '#fbbf24']
+  // Liczby po prawej
+  const statCancelledByStudent = lessonsWithCancel.filter(
+    (l) => l.status === 'cancelled' && l.cancelledBy === 'student'
+  ).length
+  const statCancelledByParent = lessonsWithCancel.filter(
+    (l) => l.status === 'cancelled' && l.cancelledBy === 'parent'
+  ).length
+  const statCancelledByTutor = lessonsWithCancel.filter(
+    (l) => l.status === 'cancelled' && l.cancelledBy === 'tutor'
+  ).length
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -378,10 +345,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {(currentUser.accountType === 'tutor' || currentUser.accountType === 'admin') && (
-              <form
-                onSubmit={e => handleAddAnnouncement(e, 'published')}
-                className="mb-6 flex flex-col gap-2"
-              >
+              <form onSubmit={handleAddAnnouncement} className="mb-6 flex flex-col gap-2">
                 <textarea
                   value={newAnnouncement}
                   onChange={e => setNewAnnouncement(e.target.value)}
@@ -390,18 +354,9 @@ export default function DashboardPage() {
                   required
                   disabled={isAddingAnnouncement}
                 />
-                <div className="flex flex-row gap-2">
-                  <Button type="submit" disabled={isAddingAnnouncement || !newAnnouncement.trim()}>
-                    {isAddingAnnouncement ? 'Dodawanie...' : 'Dodaj ogłoszenie'}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    disabled={isSavingDraft || !newAnnouncement.trim()}
-                  >
-                    {isSavingDraft ? 'Zapisywanie...' : 'Zapisz jako wersję roboczą'}
-                  </Button>
-                </div>
+                <Button type="submit" disabled={isAddingAnnouncement || !newAnnouncement.trim()}>
+                  {isAddingAnnouncement ? 'Dodawanie...' : 'Dodaj ogłoszenie'}
+                </Button>
               </form>
             )}
             <div>
@@ -409,20 +364,13 @@ export default function DashboardPage() {
                 <div className="text-gray-500 italic">Brak ogłoszeń.</div>
               )}
               <ul className="space-y-4">
-                {announcements
-                  .filter(a => a.status === 'published' || (a.status === 'draft' && a.authorId === currentUser.id))
-                  .map(a => (
+                {announcements.map(a => (
                   <li
                     key={a.id}
                     className="border rounded p-3 bg-gray-50 flex justify-between items-start"
                   >
                     <div>
-                      <div className="mb-1">
-                        {a.text}{' '}
-                        {a.status === 'draft' && (
-                          <span className="ml-2 text-xs font-semibold text-orange-500">(Wersja robocza)</span>
-                        )}
-                      </div>
+                      <div className="mb-1">{a.text}</div>
                       <div className="text-xs text-gray-500 flex flex-row gap-2">
                         <span>Autor: {a.authorName}</span>
                         {a.createdAt && (
@@ -434,35 +382,15 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-row gap-2">
-                      {a.status === 'draft' && (currentUser.accountType === 'admin' || currentUser.accountType === 'tutor') && (
-                        <>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handlePublishAnnouncement(a.id)}
-                          >
-                            Opublikuj
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteDraft(a.id)}
-                          >
-                            Usuń wersję roboczą
-                          </Button>
-                        </>
-                      )}
-                      {a.status === 'published' && currentUser.accountType === 'admin' && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteAnnouncement(a.id)}
-                        >
-                          Usuń
-                        </Button>
-                      )}
-                    </div>
+                    {currentUser.accountType === 'admin' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteAnnouncement(a.id)}
+                      >
+                        Usuń
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -510,21 +438,6 @@ export default function DashboardPage() {
                     </a>
                   </Button>
                 )}
-                {currentUser.bookLink && (
-                  <Button
-                    asChild
-                    variant="default"
-                    className="w-full"
-                  >
-                    <a
-                      href={currentUser.bookLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Otwórz podręcznik online
-                    </a>
-                  </Button>
-                )}
                 {currentUser.classroomLink && (
                   <Button
                     asChild
@@ -548,13 +461,8 @@ export default function DashboardPage() {
 
       {/* --- Twoje dzieci dla rodzica --- */}
       {currentUser?.accountType === 'parent' && (
-        <div className="mt-6 mb-6 w-full">
-          <ChildrenListContent
-            studentsList={(currentUser.linkedAccounts || []).map((child) => {
-              const name = (child.studentName ?? `${child.firstName ?? ''} ${child.lastName ?? ''}`.trim()) || '—'
-              return { id: child.studentId, studentName: name }
-            })}
-          />
+        <div className="mt-6 mb-6 max-w-5xl mx-auto p-6 w-full">
+          <ChildrenListContent childrenList={currentUser.linkedAccounts || []} />
         </div>
       )}
 

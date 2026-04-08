@@ -39,7 +39,7 @@ export default function AddReviewPage() {
     });
 
     console.log("✅ Opinie zapisano! ID dokumentu:", docRef.id);
-    alert("Dziękujemy za opinię! Twoje zdanie jest dla nas bardzo cenne.");
+    alert("Dziękuję za opinię! Twoje zdanie jest dla mnie bardzo cenne.");
     setFirstName("");
     setLastName("");
     setRole("");

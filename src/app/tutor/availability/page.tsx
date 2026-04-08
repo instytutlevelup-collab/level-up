@@ -21,34 +21,34 @@ interface Availability {
   lessonType: string[];
 }
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { db, auth } from "@/lib/firebase"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  collection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { auth, db } from "@/lib/firebase";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
+import { onAuthStateChanged } from "firebase/auth";
+import {
   addDoc,
-  query,
-  where,
-  getDocs,
+  collection,
   deleteDoc,
   doc,
   getDoc,
-  updateDoc
-} from "firebase/firestore"
-import { onAuthStateChanged } from "firebase/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { format } from "date-fns"
-import { pl } from "date-fns/locale"
+  getDocs,
+  query,
+  updateDoc,
+  where
+} from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const daysOfWeek = [
   { label: "Poniedziałek", value: "monday" },
@@ -78,8 +78,6 @@ export default function AvailabilityPage() {
   const [selectedLessonType, setSelectedLessonType] = useState<string[]>([])
   // Filter day state
   const [filterDay, setFilterDay] = useState<string>("all")
-
-  // Usunięto stany i funkcje związane z buforami i listą uczniów dla buforów
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
