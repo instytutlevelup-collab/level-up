@@ -580,7 +580,7 @@ useEffect(() => {
     return [...new Set(slots)]
   }
 
-  // Rozszerzona obsługa rezerwacji cyklicznych — zapisuje wszystkie wystąpienia do końca roku szkolnego
+// Rozszerzona obsługa rezerwacji cyklicznych — zapisuje wszystkie wystąpienia do końca roku szkolnego
   const handleBooking = async (type: "weekly" | "one-time") => {
     const refreshBookings = async () => {
       const booksSnap = await getDocs(collection(db, "bookings"));
@@ -602,7 +602,6 @@ useEffect(() => {
 
     let fullDate = specificDate;
     if (type === "weekly" && day && schoolYearStart) {
-      // PATCH: Use today at midnight for weekly booking
       const todayMid = new Date();
       todayMid.setHours(0, 0, 0, 0);
       const dayIndex = daysOfWeek.findIndex(d => d.value === day);
@@ -642,14 +641,12 @@ useEffect(() => {
       }
     }
 
-    // Vacation awareness: check if slot overlaps any vacation for this tutor
-    // Compute slot start and end
     let slotStart: string, slotEnd: string;
     if (type === "weekly" && day && fullDate) {
       slotStart = fullDate + "T" + time;
       const endDateObj = new Date(fullDate + "T" + time);
       endDateObj.setMinutes(endDateObj.getMinutes() + duration);
-      slotEnd = endDateObj.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+      slotEnd = endDateObj.toISOString().slice(0, 16);
     } else if (type === "one-time" && fullDate) {
       slotStart = fullDate + "T" + time;
       const endDateObj = new Date(fullDate + "T" + time);
@@ -661,14 +658,7 @@ useEffect(() => {
     }
     for (const vac of vacations) {
       if (vac.tutorId === tutorId) {
-        if (
-          intervalsOverlap(
-            slotStart,
-            slotEnd,
-            vac.startDateTime,
-            vac.endDateTime
-          )
-        ) {
+        if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
           alert("Korepetytor jest na urlopie w tym terminie.");
           return;
         }
@@ -697,7 +687,6 @@ useEffect(() => {
         while (d <= schoolYearEnd) {
           if (d >= now) {
             const dStr = format(new Date(d), "yyyy-MM-dd")
-            // Vacation awareness for each occurrence
             const slotStartRec = dStr + "T" + time;
             const endDateObj = new Date(dStr + "T" + time);
             endDateObj.setMinutes(endDateObj.getMinutes() + duration);
@@ -705,14 +694,7 @@ useEffect(() => {
             let isVacation = false;
             for (const vac of vacations) {
               if (vac.tutorId === tutorId) {
-                if (
-                  intervalsOverlap(
-                    slotStartRec,
-                    slotEndRec,
-                    vac.startDateTime,
-                    vac.endDateTime
-                  )
-                ) {
+                if (intervalsOverlap(slotStartRec, slotEndRec, vac.startDateTime, vac.endDateTime)) {
                   isVacation = true;
                   break;
                 }
@@ -723,7 +705,6 @@ useEffect(() => {
               continue;
             }
             if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration, bufferBefore, bufferAfter)) {
-              // If makeupForLessonId is set, treat the first occurrence as odrabiana (makeup), rest as scheduled
               if (
                 makeupForLessonId &&
                 toAdd.length === 0 &&
@@ -781,12 +762,8 @@ useEffect(() => {
           return
         }
         for (const bookingData of toAdd) {
-          // If this is a makeup booking, update original booking's status after adding
           let docRef;
-          if (
-            bookingData.status === "makeup" &&
-            bookingData.originalLessonId
-          ) {
+          if (bookingData.status === "makeup" && bookingData.originalLessonId) {
             docRef = await addDoc(collection(db, "bookings"), bookingData)
             await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
           } else {
@@ -804,10 +781,28 @@ useEffect(() => {
             },
           })
         }
+
+        // NOWE: Pukanie do naszego listonosza (wysłanie jednej, zbiorczej paczki)
+        try {
+          const allDates = toAdd.map(b => b.fullDate).join(", ");
+          await fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentName: toAdd[0].studentName,
+              tutorName: toAdd[0].tutorName,
+              date: allDates,
+              time: toAdd[0].time,
+              type: "weekly"
+            })
+          });
+        } catch (e) {
+          console.error("Błąd wysyłania e-maila:", e);
+        }
+
         await refreshBookings();
         alert(`Zarezerwowano lekcje cykliczne (${toAdd.length} terminów)!`)
       } else {
-        // one-time booking
         const bookingData: Omit<Booking, "id"> = {
           tutorId,
           tutorName,
@@ -838,10 +833,7 @@ useEffect(() => {
           bookingData.status = "scheduled"
         }
         let docRef;
-        if (
-          bookingData.status === "makeup" &&
-          bookingData.originalLessonId
-        ) {
+        if (bookingData.status === "makeup" && bookingData.originalLessonId) {
           docRef = await addDoc(collection(db, "bookings"), bookingData)
           await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
         } else {
@@ -858,6 +850,24 @@ useEffect(() => {
             createdByRole: bookingData.createdByRole,
           },
         })
+
+        // NOWE: Pukanie do naszego listonosza (wysłanie paczki dla lekcji jednorazowej)
+        try {
+          await fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentName: bookingData.studentName,
+              tutorName: bookingData.tutorName,
+              date: bookingData.fullDate,
+              time: bookingData.time,
+              type: "one-time"
+            })
+          });
+        } catch (e) {
+          console.error("Błąd wysyłania e-maila:", e);
+        }
+
         await refreshBookings();
         alert("Zarezerwowano lekcję!")
       }
