@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export async function POST() {
+export async function GET() {
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
