@@ -4,11 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "check": "npm run lint && npx tsc --noEmit && next build --no-lint"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
