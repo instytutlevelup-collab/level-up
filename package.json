@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --no-lint",
+    "build": "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "check": "npm run lint && npx tsc --noEmit && next build --no-lint"
