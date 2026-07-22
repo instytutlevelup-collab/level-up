@@ -295,7 +295,7 @@ useEffect(() => {
         // Conflict if newBlockStart < blockEnd && newBlockEnd > blockStart
         if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
           // Log blocked slot for one-time booking here, where newBlockStart/newBlockEnd are defined
-          console.log("Slot blocked by one-time booking:", { id: b.id, ...b });
+          console.log("Slot blocked by one-time booking:", { ...b });
           return true
         }
         return false
