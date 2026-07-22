@@ -8,7 +8,7 @@ export async function POST() {
       },
       body: JSON.stringify({
         from: 'Powiadomienia <onboarding@resend.dev>',
-        to: ['v.pajak03@gmail.com'], 
+        to: ['instytut.levelup@gmail.com'],
         subject: 'Potwierdzenie rezerwacji korepetycji',
         html: '<p>Hurra! To jest testowe powiadomienie z Twojej aplikacji.</p>',
       }),
