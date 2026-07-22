@@ -328,7 +328,7 @@ useEffect(() => {
         const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
         if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
           // Log blocked slot for recurring booking
-          console.log("Slot blocked by recurring booking:", { id: b.id, ...b });
+          console.log("Slot blocked by recurring booking:", { ...b });
           return true
         }
         return false
