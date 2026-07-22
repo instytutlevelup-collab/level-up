@@ -850,6 +850,46 @@ useEffect(() => {
             createdByRole: bookingData.createdByRole,
           },
         })
+
+        // --- NOWY KOD: WYSYŁANIE E-MAILA ---
+        try {
+          const tutor = tutors.find(t => t.id === tutorId);
+          const tutorEmail = tutor?.email;
+          const userEmail = currentUser?.email;
+
+          // Zbieramy unikalne adresy e-mail (Instytut + Tutor + Osoba rezerwująca)
+          const emailsToSend = ["instytut.levelup@gmail.com"];
+          if (tutorEmail && !emailsToSend.includes(tutorEmail)) emailsToSend.push(tutorEmail);
+          if (userEmail && !emailsToSend.includes(userEmail)) emailsToSend.push(userEmail);
+
+          await fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: emailsToSend,
+              subject: `Nowa rezerwacja: ${subject} (${studentName})`,
+              html: `
+                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                  <h2 style="color: #4F46E5; margin-top: 0;">Nowa rezerwacja lekcji jednorazowej</h2>
+                  <p>W systemie zarezerwowano nowe zajęcia. Oto szczegóły:</p>
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>📚 Przedmiot:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${subject}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>👤 Uczeń:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${studentName}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>👨‍🏫 Korepetytor:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${tutorName}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>📅 Data:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${fullDate}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>⏰ Godzina:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${time}</td></tr>
+                    <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>⏱ Czas trwania:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${duration} min</td></tr>
+                    <tr><td style="padding: 8px 0;"><strong>📍 Tryb:</strong></td><td style="padding: 8px 0;">${lessonMode}</td></tr>
+                  </table>
+                </div>
+              `
+            })
+          });
+        } catch (emailError) {
+          console.error("Nie udało się wysłać powiadomienia e-mail:", emailError);
+        }
+        // --- KONIEC NOWEGO KODU ---
+
         await refreshBookings();
         alert("Zarezerwowano lekcję!")
       }
