@@ -58,6 +58,7 @@ function intervalsOverlap(start1: string, end1: string, start2: string, end2: st
 
 export default function BookingPage() {
   const [subjects, setSubjects] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [vacations, setVacations] = useState<DocumentData[]>([])
 
   useEffect(() => {
@@ -574,6 +575,8 @@ useEffect(() => {
 
   // Rozszerzona obsługa rezerwacji cyklicznych — zapisuje wszystkie wystąpienia do końca roku szkolnego
   const handleBooking = async (type: "weekly" | "one-time") => {
+    if (isSubmitting) return; 
+   setIsSubmitting(true);
     const refreshBookings = async () => {
       const booksSnap = await getDocs(collection(db, "bookings"));
       setBookings(booksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
@@ -862,10 +865,12 @@ useEffect(() => {
       setLessonMode("")
       setMakeupForLessonId(null)
     } catch (err) {
-      console.error(err)
-      alert("Błąd podczas rezerwacji.")
-    }
-  }
+         console.error(err)
+         alert("Błąd podczas rezerwacji.")
+       } finally {
+         setIsSubmitting(false);
+       }
+     }
 
 
   useEffect(() => {
@@ -1026,7 +1031,9 @@ useEffect(() => {
             </>
           )}
 
-          <Button onClick={() => handleBooking("weekly")}>Zarezerwuj lekcję</Button>
+          <Button disabled={isSubmitting} onClick={() => handleBooking("weekly")}>
+     {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
+   </Button>
         </CardContent>
       </Card>
 
@@ -1190,7 +1197,9 @@ useEffect(() => {
               </Select>
             </>
           )}
-          <Button onClick={() => handleBooking("one-time")}>Zarezerwuj lekcję</Button>
+          <Button disabled={isSubmitting} onClick={() => handleBooking("one-time")}>
+     {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
+   </Button>
         </CardContent>
       </Card>
     </div>
