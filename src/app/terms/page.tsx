@@ -17,7 +17,7 @@ export default function TermsPage() {
               Zapisu na zajęcia osób niepełnoletnich dokonuje Rodzic/Opiekun prawny poprzez
               platformę <strong>Instytut Wiedzy Level Up!</strong>, kontakt telefoniczny lub komunikator Messenger.
             </li>
-            <li>Podjęcie współpracy jest równoznaczne z akceptacją niniejszego Regulaminu.</li>
+            <li>Podjęcie współpracy i uczestnictwo w zajęciach jest równoznaczne z akceptacją niniejszego Regulaminu.</li>
             <li>Rażące naruszenie postanowień Regulaminu może skutkować zakończeniem współpracy.</li>
             <li>
               Terminy zajęć należy rezerwować w trzech okresach: wrzesień, od października do ferii zimowych oraz
