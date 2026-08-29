@@ -5,14 +5,15 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { db, auth } from '@/lib/firebase'
 import { collection, getDocs, doc, setDoc, updateDoc, getDoc, QueryDocumentSnapshot } from 'firebase/firestore'
-interface LinkedAccount {
-  studentId: string;
-  studentName: string;
-}
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+
+interface LinkedAccount {
+  studentId: string;
+  studentName: string;
+}
 
 interface ParentUser {
   id: string
@@ -29,6 +30,8 @@ interface StudentUser {
   bookLink?: string
   meetingLink?: string
   classroomLink?: string
+  hourlyRate?: number
+  travelRate?: number
 }
 
 export default function AddStudentPage() {
@@ -43,6 +46,9 @@ export default function AddStudentPage() {
   const [error, setError] = useState('')
   const [schoolType, setSchoolType] = useState('')
   const [grade, setGrade] = useState('')
+  const [newHourlyRate, setNewHourlyRate] = useState<number | ''>('')
+  const [newTravelRate, setNewTravelRate] = useState<number | ''>('')
+
   // students state
   const [students, setStudents] = useState<StudentUser[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
@@ -50,6 +56,9 @@ export default function AddStudentPage() {
   const [bookLink, setBookLink] = useState('')
   const [meetingLink, setMeetingLink] = useState('')
   const [classroomLink, setClassroomLink] = useState('')
+  const [hourlyRate, setHourlyRate] = useState<number | ''>('')
+  const [travelRate, setTravelRate] = useState<number | ''>('')
+  
   const [studentEditLoading, setStudentEditLoading] = useState(false)
   const [studentEditError, setStudentEditError] = useState('')
   const [studentEditSuccess, setStudentEditSuccess] = useState('')
@@ -62,6 +71,7 @@ export default function AddStudentPage() {
         .filter(doc => doc.data().accountType === 'parent')
         .map(doc => ({ id: doc.id, ...doc.data() })) as ParentUser[]
       setParents(parentData)
+      
       // fetch students
       const studentData = docs
         .filter(doc => doc.data().accountType === 'student')
@@ -75,6 +85,8 @@ export default function AddStudentPage() {
             bookLink: data.bookLink || '',
             meetingLink: data.meetingLink || '',
             classroomLink: data.classroomLink || '',
+            hourlyRate: Number(data.hourlyRate) || 0,
+            travelRate: Number(data.travelRate) || 0,
           }
         }) as StudentUser[]
       setStudents(studentData)
@@ -82,7 +94,7 @@ export default function AddStudentPage() {
     fetchParentsAndStudents()
   }, [])
 
-  // When selectedStudentId changes, update notebookLink/meetingLink fields
+  // When selectedStudentId changes, update fields
   useEffect(() => {
     if (selectedStudentId) {
       const student = students.find(s => s.id === selectedStudentId)
@@ -90,6 +102,8 @@ export default function AddStudentPage() {
       setBookLink(student?.bookLink || '')
       setMeetingLink(student?.meetingLink || '')
       setClassroomLink(student?.classroomLink || '')
+      setHourlyRate(student?.hourlyRate || '')
+      setTravelRate(student?.travelRate || '')
       setStudentEditError('')
       setStudentEditSuccess('')
     }
@@ -146,9 +160,12 @@ export default function AddStudentPage() {
           canCancel: false,
           schoolType,
           grade,
+          hourlyRate: Number(newHourlyRate) || 0,
+          travelRate: Number(newTravelRate) || 0,
           parentEmail: parentId ? parents.find(p => p.id === parentId)?.email || null : null,
         }
         await setDoc(doc(db, 'users', studentId), newStudent)
+        
         // If parentId provided, update parent's linkedAccounts
         if (parentId) {
           const parentRef = doc(db, 'users', parentId)
@@ -172,6 +189,8 @@ export default function AddStudentPage() {
       setParentId('')
       setSchoolType('')
       setGrade('')
+      setNewHourlyRate('')
+      setNewTravelRate('')
 
       // refresh students list
       const snapshot = await getDocs(collection(db, 'users'))
@@ -188,6 +207,8 @@ export default function AddStudentPage() {
             bookLink: data.bookLink || '',
             meetingLink: data.meetingLink || '',
             classroomLink: data.classroomLink || '',
+            hourlyRate: Number(data.hourlyRate) || 0,
+            travelRate: Number(data.travelRate) || 0,
           }
         }) as StudentUser[]
       setStudents(studentData)
@@ -210,13 +231,16 @@ export default function AddStudentPage() {
         bookLink,
         meetingLink,
         classroomLink,
+        hourlyRate: Number(hourlyRate) || 0,
+        travelRate: Number(travelRate) || 0,
       })
       setStudentEditSuccess('Zapisano!')
+      
       // update local state
       setStudents(prev =>
         prev.map(s =>
           s.id === selectedStudentId
-            ? { ...s, notebookLink, bookLink, meetingLink, classroomLink }
+            ? { ...s, notebookLink, bookLink, meetingLink, classroomLink, hourlyRate: Number(hourlyRate) || 0, travelRate: Number(travelRate) || 0 }
             : s
         )
       )
@@ -293,11 +317,23 @@ export default function AddStudentPage() {
             <Label>Hasło</Label>
             <Input value={password} onChange={e => setPassword(e.target.value)} type="password" />
           </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Stawka za godzinę (zł)</Label>
+              <Input type="number" min="0" value={newHourlyRate} onChange={e => setNewHourlyRate(e.target.value === '' ? '' : Number(e.target.value))} />
+            </div>
+            <div>
+              <Label>Stawka za dojazd (zł)</Label>
+              <Input type="number" min="0" value={newTravelRate} onChange={e => setNewTravelRate(e.target.value === '' ? '' : Number(e.target.value))} />
+            </div>
+          </div>
+
           <div>
             <Label>Przedmioty (oddzielone przecinkami)</Label>
             <Input value={subjects} onChange={e => setSubjects(e.target.value)} />
           </div>
-          {/* --- SCHOOL TYPE SELECT --- */}
+          
           <div>
             <Label>Typ szkoły</Label>
             <Select value={schoolType} onValueChange={setSchoolType}>
@@ -353,11 +389,10 @@ export default function AddStudentPage() {
         </CardContent>
         </Card>
 
-        {/* --- STUDENT SELECT & EDIT LINKS --- */}
         <div className="mt-10">
           <Card>
             <CardHeader>
-              <CardTitle>Edytuj linki ucznia</CardTitle>
+              <CardTitle>Edytuj dane ucznia</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -382,8 +417,20 @@ export default function AddStudentPage() {
                   </SelectContent>
                 </Select>
               </div>
+              
               {selectedStudentId && (
                 <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Stawka za godzinę (zł):</Label>
+                      <Input type="number" min="0" value={hourlyRate} onChange={e => setHourlyRate(e.target.value === '' ? '' : Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <Label>Stawka za dojazd (zł):</Label>
+                      <Input type="number" min="0" value={travelRate} onChange={e => setTravelRate(e.target.value === '' ? '' : Number(e.target.value))} />
+                    </div>
+                  </div>
+
                   <div>
                     <label>Link do wideokonferencji:</label>
                     <Input
@@ -417,13 +464,14 @@ export default function AddStudentPage() {
                   <Button onClick={handleSaveStudentLinks} disabled={studentEditLoading}>
                     {studentEditLoading ? 'Zapisuję...' : 'Zapisz'}
                   </Button>
-                  {/* Button to link selected student to selected parent */}
+                  
                   {parentId && (
                     <Button
                       onClick={() => linkStudentToParent(selectedStudentId, parentId)}
-                      className="mt-2"
+                      className="mt-2 ml-2"
+                      variant="outline"
                     >
-                      Powiąż ucznia z rodzicem
+                      Powiąż ucznia z wybranym wyżej rodzicem
                     </Button>
                   )}
                 </div>
