@@ -417,7 +417,7 @@ export default function DashboardPage() {
                     className="border rounded p-3 bg-gray-50 flex justify-between items-start"
                   >
                     <div>
-                      <div className="mb-1">
+                      <div className="mb-1 whitespace-pre-wrap">
                         {a.text}{' '}
                         {a.status === 'draft' && (
                           <span className="ml-2 text-xs font-semibold text-orange-500">(Wersja robocza)</span>
