@@ -365,12 +365,13 @@ useEffect(() => {
     return false;
   }
 
-  // Zwraca dostępne daty, filtrując zajęte (zarówno jednorazowe, jak i cykliczne)
+// Zwraca dostępne daty TYLKO z puli jednorazowej (blokada "kradzieży" stałych dni)
   const getAvailableDates = () => {
-    if (!schoolYearStart || !schoolYearEnd) return []
+    const start = schoolYearStart;
+    const end = schoolYearEnd;
+    if (!start || !end) return [];
 
     const datesSet = new Set<string>()
-    // Patch: Use today at midnight, and also get now and today's string
     const todayMid = new Date()
     todayMid.setHours(0, 0, 0, 0)
     const now = new Date()
@@ -383,31 +384,31 @@ useEffect(() => {
         lessonMode &&
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return
+      
+      // Przetwarzamy WYŁĄCZNIE dostępność jednorazową
       if (a.type === "one-time") {
         let date = "";
-        // Firestore Timestamp
+        
         if (a.date?.toDate) {
           date = format(a.date.toDate(), "yyyy-MM-dd");
-        }
-        // Already a string
-        else if (typeof a.date === "string") {
+        } else if (typeof a.date === "string") {
           date = a.date;
-        }
-        // If neither, skip
-        else {
+        } else {
           return;
         }
+
         if (new Date(date) >= todayMid) {
           const [sh, sm] = (a.startTime || "").split(":").map(Number)
           const [eh, em] = (a.endTime || "").split(":").map(Number)
-          const start = sh * 60 + sm
-          const end = eh * 60 + em
+          const startTime = sh * 60 + sm
+          const endTime = eh * 60 + em
 
-          for (let t = start; t + duration <= end; t += 10) {
+          for (let t = startTime; t + duration <= endTime; t += 10) {
             if (date === todayStr && t <= nowMins) continue
             const h = String(Math.floor(t / 60)).padStart(2, "0")
             const m = String(t % 60).padStart(2, "0")
             const timeStr = `${h}:${m}`
+            
             if (
               !isSlotTaken(tutorId, date || "", timeStr, duration, bufferBefore, bufferAfter) ||
               bookings.some(b =>
@@ -422,48 +423,12 @@ useEffect(() => {
           datesSet.add(date)
         }
       }
-      if (a.type === "weekly") {
-        // Upewnij się, że oba są lowerCase
-        const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(a.day).toLowerCase())
-        if (dayIndex === -1) return
-        const firstDate = new Date(schoolYearStart)
-        const diff = (dayIndex - firstDate.getDay() + 7) % 7
-        firstDate.setDate(firstDate.getDate() + diff)
-        for (let d = new Date(firstDate); d <= schoolYearEnd; d.setDate(d.getDate() + 7)) {
-          if (d >= todayMid) {
-            const dateStr = format(new Date(d), "yyyy-MM-dd") ?? ""
-            const [sh, sm] = (a.startTime || "").split(":").map(Number)
-            const [eh, em] = (a.endTime || "").split(":").map(Number)
-            const start = sh * 60 + sm
-            const end = eh * 60 + em
-            for (let t = start; t + duration <= end; t += 10) {
-              if (dateStr === todayStr && t <= nowMins) continue
-              const h = String(Math.floor(t / 60)).padStart(2, "0")
-              const m = String(t % 60).padStart(2, "0")
-              const timeStr = `${h}:${m}`
-              // PATCH: allow slot if not taken, OR if there is a recurring booking for this slot on this date that is cancelled,
-              // but for weekly, cancelled recurring must match day
-              if (
-                !isSlotTaken(tutorId, dateStr || "", timeStr || "", duration) ||
-                bookings.some(b =>
-                  b.isRecurring &&
-                  String(b.day).toLowerCase() === String(a.day).toLowerCase() &&
-                  b.fullDate === dateStr &&
-                  ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "")
-                )
-              ) {
-                break
-              }
-            }
-            datesSet.add(dateStr)
-          }
-        }
-      }
     })
+    
     return Array.from(datesSet).sort()
   }
 
-  // Zwraca dostępne sloty, uwzględniając blokowanie także przez powtarzające się rezerwacje i urlopy
+  // Zwraca dostępne sloty, przy całkowitym rozdzieleniu puli
   const getAvailableSlots = (type: "weekly" | "one-time") => {
     const slots: string[] = []
     const filtered = availability.filter(a => {
@@ -472,37 +437,33 @@ useEffect(() => {
         lessonMode &&
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return false
+      
+      // Rezerwacja stała
       if (type === "weekly") {
-        // Porównuj day w lowerCase i trim
         return a.type === "weekly" &&
           String(a.day).toLowerCase().trim() === String(day).toLowerCase().trim()
       }
+      
+      // Rezerwacja jednorazowa
       if (type === "one-time") {
         if (!specificDate) return false
         if (a.type === "one-time") {
           let oneTimeDate = ""
-          // Jeśli Firestore zwrócił timestamp
           if (a.date?.toDate) {
             oneTimeDate = format(a.date.toDate(), "yyyy-MM-dd")
           }
-          // Jeśli zapis był stringiem
           else if (typeof a.date === "string") {
             oneTimeDate = a.date
           }
           if (oneTimeDate === specificDate) return true
         }
-        if (a.type === "weekly") {
-          const selectedDate = new Date(specificDate)
-          const selectedDayValue = daysOfWeek[selectedDate.getDay()]?.value
-          // Porównaj oba w lowerCase i trim
-          return String(a.day).toLowerCase().trim() === String(selectedDayValue).toLowerCase().trim()
-        }
+        return false // BLOKADA: Jednorazowe NIE kradną grafiku stałego
       }
       return false
     })
+
     let fullDate = specificDate;
     if (type === "weekly" && day && schoolYearStart) {
-      // PATCH: Use today at midnight for weekly slot calculation
       const todayMid = new Date();
       todayMid.setHours(0, 0, 0, 0);
       const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(day).toLowerCase()); // 0-6
@@ -514,29 +475,31 @@ useEffect(() => {
       }
       fullDate = format(first, "yyyy-MM-dd");
     }
+
     if (!fullDate) return slots
-    // PATCH: Add now, nowMins, todayStr for slot skipping
+
     const now = new Date()
     const nowMins = now.getHours() * 60 + now.getMinutes()
     const todayStr = format(now, "yyyy-MM-dd")
-    // PATCH: Normalize day for isSlotTaken
     const normalizedDay = day ? day.toLowerCase().trim() : ""
+
     filtered.forEach(a => {
       const [sh, sm] = (a.startTime || "").split(":").map(Number)
       const [eh, em] = (a.endTime || "").split(":").map(Number)
-      const start = sh * 60 + sm
-      const end = eh * 60 + em
-      for (let t = start; t + duration <= end; t += 10) {
+      const startTime = sh * 60 + sm
+      const endTime = eh * 60 + em
+
+      for (let t = startTime; t + duration <= endTime; t += 10) {
         if (fullDate === todayStr && t <= nowMins) continue
         const h = String(Math.floor(t / 60)).padStart(2, "0")
         const m = String(t % 60).padStart(2, "0")
         const timeStr = `${h}:${m}`
-        // Vacation check
         const slotStart = fullDate + "T" + timeStr;
         const endDateObj = new Date(fullDate + "T" + timeStr);
         endDateObj.setMinutes(endDateObj.getMinutes() + duration);
         const slotEnd = endDateObj.toISOString().slice(0, 16);
         let inVacation = false;
+
         for (const vac of vacations) {
           if (vac.tutorId === tutorId) {
             if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
@@ -546,8 +509,7 @@ useEffect(() => {
           }
         }
         if (inVacation) continue;
-        // PATCH: allow slot if not taken, OR if there is a recurring booking for this slot on this date that is cancelled
-        // For weekly, require matching day
+
         if (
           !isSlotTaken(tutorId, fullDate, timeStr, duration, bufferBefore, bufferAfter) ||
           (type === "weekly"
