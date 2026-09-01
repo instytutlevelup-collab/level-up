@@ -106,6 +106,7 @@ export default function PaymentsPage() {
                   travelRate: Number(data.travelRate) || 0 
                 }
               })
+              .sort((a, b) => a.fullName.localeCompare(b.fullName, 'pl'))
             setStudents(studentsList)
             if (studentsList.length > 0) setSelectedStudent(studentsList[0].id)
           } else if (accountType === 'student') {
