@@ -428,7 +428,7 @@ useEffect(() => {
     return Array.from(datesSet).sort()
   }
 
-  // Zwraca dostępne sloty, przy całkowitym rozdzieleniu puli
+// Zwraca dostępne sloty, poprawnie skanując cały rok dla rezerwacji stałych
   const getAvailableSlots = (type: "weekly" | "one-time") => {
     const slots: string[] = []
     const filtered = availability.filter(a => {
@@ -438,13 +438,11 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return false
       
-      // Rezerwacja stała
       if (type === "weekly") {
         return a.type === "weekly" &&
           String(a.day).toLowerCase().trim() === String(day).toLowerCase().trim()
       }
       
-      // Rezerwacja jednorazowa
       if (type === "one-time") {
         if (!specificDate) return false
         if (a.type === "one-time") {
@@ -457,7 +455,7 @@ useEffect(() => {
           }
           if (oneTimeDate === specificDate) return true
         }
-        return false // BLOKADA: Jednorazowe NIE kradną grafiku stałego
+        return false 
       }
       return false
     })
@@ -466,7 +464,7 @@ useEffect(() => {
     if (type === "weekly" && day && schoolYearStart) {
       const todayMid = new Date();
       todayMid.setHours(0, 0, 0, 0);
-      const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(day).toLowerCase()); // 0-6
+      const dayIndex = daysOfWeek.findIndex(d => d.value.toLowerCase() === String(day).toLowerCase());
       const first = new Date(schoolYearStart);
       const offset = (dayIndex - first.getDay() + 7) % 7;
       first.setDate(first.getDate() + offset);
@@ -481,7 +479,6 @@ useEffect(() => {
     const now = new Date()
     const nowMins = now.getHours() * 60 + now.getMinutes()
     const todayStr = format(now, "yyyy-MM-dd")
-    const normalizedDay = day ? day.toLowerCase().trim() : ""
 
     filtered.forEach(a => {
       const [sh, sm] = (a.startTime || "").split(":").map(Number)
@@ -494,41 +491,45 @@ useEffect(() => {
         const h = String(Math.floor(t / 60)).padStart(2, "0")
         const m = String(t % 60).padStart(2, "0")
         const timeStr = `${h}:${m}`
-        const slotStart = fullDate + "T" + timeStr;
-        const endDateObj = new Date(fullDate + "T" + timeStr);
-        endDateObj.setMinutes(endDateObj.getMinutes() + duration);
-        const slotEnd = endDateObj.toISOString().slice(0, 16);
-        let inVacation = false;
-
-        for (const vac of vacations) {
-          if (vac.tutorId === tutorId) {
-            if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
-              inVacation = true;
-              break;
+        
+        if (type === "weekly") {
+          let isFreeForAllWeeks = true;
+          const checkDate = new Date(fullDate);
+          
+          while (checkDate <= (schoolYearEnd || new Date(2027, 6, 1))) {
+            const checkDateStr = format(checkDate, "yyyy-MM-dd");
+            if (isSlotTaken(tutorId, checkDateStr, timeStr, duration, bufferBefore, bufferAfter)) {
+              isFreeForAllWeeks = false;
+              break; 
             }
+            checkDate.setDate(checkDate.getDate() + 7);
           }
-        }
-        if (inVacation) continue;
+          
+          if (isFreeForAllWeeks) {
+            slots.push(timeStr);
+          }
+          
+        } else {
+          // PATCH: Niezawodny bypass dla odwołanych terminów (jednorazowych)
+          const slotTaken = isSlotTaken(tutorId, fullDate, timeStr, duration, bufferBefore, bufferAfter);
+          
+          const hasCancelledOverride = bookings.some(b => 
+            b.tutorId === tutorId && 
+            b.fullDate === fullDate && 
+            b.time === timeStr && 
+            ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
+          );
+          
+          const hasValidBooking = bookings.some(b => 
+            b.tutorId === tutorId && 
+            b.fullDate === fullDate && 
+            b.time === timeStr && 
+            !["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used"].includes(b.status ?? "")
+          );
 
-        if (
-          !isSlotTaken(tutorId, fullDate, timeStr, duration, bufferBefore, bufferAfter) ||
-          (type === "weekly"
-            ? bookings.some(b =>
-                b.isRecurring &&
-                String(b.day).toLowerCase() === normalizedDay &&
-                b.fullDate === fullDate &&
-                b.time === timeStr &&
-                ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
-              )
-            : bookings.some(b =>
-                b.isRecurring &&
-                b.fullDate === fullDate &&
-                b.time === timeStr &&
-                ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "")
-              )
-          )
-        ) {
-          slots.push(timeStr)
+          if ((!slotTaken || hasCancelledOverride) && !hasValidBooking) {
+             slots.push(timeStr);
+          }
         }
       }
     })
