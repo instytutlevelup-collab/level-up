@@ -21,7 +21,7 @@ interface User {
   subjects?: string[]
   grade?: string
   linkedAccounts?: { studentId: string; firstName?: string; lastName?: string; studentName?: string }[]
-  videoLink?: string
+  meetingLink?: string
   notebookLink?: string
   bookLink?: string
   classroomLink?: string
@@ -480,14 +480,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="mt-4 space-y-2">
-                {currentUser.videoLink && (
+                {currentUser.meetingLink && (
                   <Button
                     asChild
                     variant="default"
                     className="w-full"
                   >
                     <a
-                      href={currentUser.videoLink}
+                      href={currentUser.meetingLink}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
