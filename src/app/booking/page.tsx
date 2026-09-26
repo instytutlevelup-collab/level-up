@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { notifyBooking } from "@/lib/notifications"
-
 import { db, auth } from "@/lib/firebase"
 import {
   collection,
@@ -48,7 +47,6 @@ const normalizeMode = (v: string) => {
 
 // Helper function to check if two intervals overlap
 function intervalsOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
-  // All inputs are ISO strings (e.g., "2024-06-10T13:00")
   const s1 = new Date(start1).getTime();
   const e1 = new Date(end1).getTime();
   const s2 = new Date(start2).getTime();
@@ -72,7 +70,8 @@ export default function BookingPage() {
     }
     fetchSubjects()
   }, [])
-  const [currentUser , setCurrentUser ] = useState<UserData | null>(null)
+  
+  const [currentUser, setCurrentUser] = useState<UserData | null>(null)
   const [availability, setAvailability] = useState<DocumentData[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [tutors, setTutors] = useState<DocumentData[]>([])
@@ -87,28 +86,29 @@ export default function BookingPage() {
   const [lessonMode, setLessonMode] = useState("")
   const [bufferBefore, setBufferBefore] = useState<number>(0)
   const [bufferAfter, setBufferAfter] = useState<number>(0)
-// Booking interface for typing bookings
-interface Booking {
-  id: string;
-  studentId: string;
-  tutorId?: string;
-  studentName: string;
-  fullDate?: string;
-  time?: string;
-  createdByRole: "parent" | "student" | "tutor" | "admin";
-  subject?: string;
-  status?: string;
-  duration?: number;
-  lessonMode?: string;
-  isRecurring?: boolean;
-  day?: string | null;
-  tutorName?: string;
-  originalLessonId?: string;
-  createdAt?: string;
-  createdById?: string;
-  bufferBefore?: number;
-  bufferAfter?: number;
-}
+
+  // Booking interface for typing bookings
+  interface Booking {
+    id: string;
+    studentId: string;
+    tutorId?: string;
+    studentName: string;
+    fullDate?: string;
+    time?: string;
+    createdByRole: "parent" | "student" | "tutor" | "admin";
+    subject?: string;
+    status?: string;
+    duration?: number;
+    lessonMode?: string;
+    isRecurring?: boolean;
+    day?: string | null;
+    tutorName?: string;
+    originalLessonId?: string;
+    createdAt?: string;
+    createdById?: string;
+    bufferBefore?: number;
+    bufferAfter?: number;
+  }
 
   // Odrabiane lekcje (makeup)
   const [makeupForLessonId, setMakeupForLessonId] = useState<string | null>(null)
@@ -116,89 +116,83 @@ interface Booking {
   const [schoolYearStart, setSchoolYearStart] = useState<Date | null>(null)
   const [schoolYearEnd, setSchoolYearEnd] = useState<Date | null>(null)
 
-// UserData interface for typing currentUser
-interface UserData {
-  id: string;
-  accountType?: "parent" | "student" | "tutor" | "admin";
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  linkedAccounts?: { studentId: string; studentName: string }[];
-}
-
-useEffect(() => {
-  const fetchUserAndBookings = async (user: DocumentData | null) => {
-    if (user) {
-      const userDoc = await getDocs(
-        query(collection(db, "users"), where("email", "==", user.email))
-      );
-      const docSnap = userDoc.docs[0];
-      if (docSnap) {
-        // Always include accountType and other fields from Firestore
-        const userData: UserData = { id: docSnap.id, ...(docSnap.data() as Partial<UserData>) };
-        setCurrentUser(userData);
-
-        // Updated logic for linked children/students
-        if (userData.accountType === "parent") {
-          // Pobierz wszystkich uczniów
-          const studentsSnap = await getDocs(
-            query(collection(db, "users"), where("accountType", "==", "student"))
-          );
-
-          const students = studentsSnap.docs
-            .map(s => {
-              const data = s.data();
-              return {
-                id: s.id,
-                firstName: data.firstName,
-                lastName: data.lastName,
-                parentEmail: data.parentEmail || null
-              };
-            })
-            .filter(s => s.parentEmail === userData.email); // filtrujemy po email rodzica
-
-          setLinkedChildren(students);
-        }
-        if (userData.accountType === "admin") {
-          // For admins: get all students
-          const studentsSnap = await getDocs(
-            query(collection(db, "users"), where("accountType", "==", "student"))
-          );
-          const students = studentsSnap.docs.map(s => ({
-            id: s.id,
-            firstName: s.data().firstName,
-            lastName: s.data().lastName,
-          }));
-          setLinkedChildren(students);
-        }
-        // Nie pobieraj lekcji tutaj, poczekaj na ustawienie currentUser
-      }
-    } else {
-      window.location.href = "/auth/login";
-    }
-  };
-  const unsub = onAuthStateChanged(auth, fetchUserAndBookings);
-  return () => unsub();
-}, []);
-
-
-// Dla korepetytora: pobierz wszystkich uczniów (niezależnie od typu konta rodzica)
-useEffect(() => {
-  const fetchAllStudents = async () => {
-    if (currentUser?.accountType === "tutor") {
-      const usersSnap = await getDocs(collection(db, "users"))
-      const allStudents = usersSnap.docs
-        .filter(doc => doc.data().accountType === "student")
-        .map(doc => ({
-          id: doc.id,
-          firstName: doc.data().firstName,
-          lastName: doc.data().lastName,
-        }));
-      setLinkedChildren(allStudents);
-    }
+  // UserData interface for typing currentUser
+  interface UserData {
+    id: string;
+    accountType?: "parent" | "student" | "tutor" | "admin";
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    linkedAccounts?: { studentId: string; studentName: string }[];
   }
-  fetchAllStudents()
-}, [currentUser])
+
+  useEffect(() => {
+    const fetchUserAndBookings = async (user: DocumentData | null) => {
+      if (user) {
+        const userDoc = await getDocs(
+          query(collection(db, "users"), where("email", "==", user.email))
+        );
+        const docSnap = userDoc.docs[0];
+        if (docSnap) {
+          const userData: UserData = { id: docSnap.id, ...(docSnap.data() as Partial<UserData>) };
+          setCurrentUser(userData);
+
+          if (userData.accountType === "parent") {
+            const studentsSnap = await getDocs(
+              query(collection(db, "users"), where("accountType", "==", "student"))
+            );
+
+            const students = studentsSnap.docs
+              .map(s => {
+                const data = s.data();
+                return {
+                  id: s.id,
+                  firstName: data.firstName,
+                  lastName: data.lastName,
+                  parentEmail: data.parentEmail || null
+                };
+              })
+              .filter(s => s.parentEmail === userData.email);
+
+            setLinkedChildren(students);
+          }
+          if (userData.accountType === "admin") {
+            const studentsSnap = await getDocs(
+              query(collection(db, "users"), where("accountType", "==", "student"))
+            );
+            const students = studentsSnap.docs.map(s => ({
+              id: s.id,
+              firstName: s.data().firstName,
+              lastName: s.data().lastName,
+            }));
+            setLinkedChildren(students);
+          }
+        }
+      } else {
+        window.location.href = "/auth/login";
+      }
+    };
+    const unsub = onAuthStateChanged(auth, fetchUserAndBookings);
+    return () => unsub();
+  }, []);
+
+  // Dla korepetytora: pobierz wszystkich uczniów (niezależnie od typu konta rodzica)
+  useEffect(() => {
+    const fetchAllStudents = async () => {
+      if (currentUser?.accountType === "tutor") {
+        const usersSnap = await getDocs(collection(db, "users"))
+        const allStudents = usersSnap.docs
+          .filter(doc => doc.data().accountType === "student")
+          .map(doc => ({
+            id: doc.id,
+            firstName: doc.data().firstName,
+            lastName: doc.data().lastName,
+          }));
+        setLinkedChildren(allStudents);
+      }
+    }
+    fetchAllStudents()
+  }, [currentUser])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -208,17 +202,18 @@ useEffect(() => {
         getDocs(query(collection(db, "users"), where("accountType", "==", "tutor"))),
         getDocs(collection(db, "vacations")),
       ]);
+      
       setAvailability(avail.docs.map(doc => {
-  const data = doc.data()
-  return {
-    id: doc.id,
-    ...data,
-    day: (data.day || "").toLowerCase().trim(),
-    lessonType: Array.isArray(data.lessonType)
-      ? data.lessonType.map((m: string) => normalizeMode(m))
-      : [],
-  }
-}))
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          day: (data.day || "").toLowerCase().trim(),
+          lessonType: Array.isArray(data.lessonType)
+            ? data.lessonType.map((m: string) => normalizeMode(m))
+            : [],
+        }
+      }))
       setBookings(books.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)))
       setTutors(tutorsData.docs.map(doc => ({ id: doc.id, ...doc.data() })))
       setVacations(vacationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
@@ -226,8 +221,18 @@ useEffect(() => {
       const settingsSnap = await getDocs(collection(db, "settings"))
       if (!settingsSnap.empty) {
         const yearData = settingsSnap.docs[0].data()
-        setSchoolYearStart(new Date(yearData.startDate))
-        setSchoolYearEnd(new Date(yearData.endDate))
+        
+        if (yearData.startDate) {
+          const [y, m, d] = yearData.startDate.split('-').map(Number)
+          setSchoolYearStart(new Date(y, m - 1, d))
+        }
+        
+        if (yearData.endDate) {
+          const [y, m, d] = yearData.endDate.split('-').map(Number)
+          const endObj = new Date(y, m - 1, d)
+          endObj.setHours(23, 59, 59, 999)
+          setSchoolYearEnd(endObj)
+        }
       }
     }
     fetchData()
@@ -242,122 +247,51 @@ useEffect(() => {
   }, [currentUser])
 
   const formatPolishDate = (date: Date | string) =>
-  format(typeof date === 'string' ? parseISO(date) : date, 'EEEE, d MMMM yyyy', { locale: pl })
+    format(typeof date === 'string' ? parseISO(date) : date, 'EEEE, d MMMM yyyy', { locale: pl })
 
-  // Rozszerzona funkcja sprawdzająca zajętość slotu, uwzględnia odwołane lekcje i makeup_used oraz urlopy
+  // Uproszczona i w 100% precyzyjna funkcja sprawdzająca zajętość (naprawia błąd "cienia" i odblokowuje m.in 18:45)
   const isSlotTaken = (tutorId: string, date: string, time: string, duration: number, bufferBeforeParam?: number, bufferAfterParam?: number) => {
-    const givenDate = new Date(date)
-    const givenDay = daysOfWeek[givenDate.getDay()]?.value
-    // PATCH: jeśli istnieje odwołana lub odrobiona rezerwacja jednorazowa dla tej daty i godziny, traktuj slot jako wolny
-    const hasCancelledOverride = bookings.some(b =>
-      !b.isRecurring &&
-      ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "") &&
-      b.tutorId === tutorId &&
-      b.fullDate === date &&
-      b.time === time
-    )
-    if (hasCancelledOverride) {
-      return false // pozwól rezerwować w tym terminie
-    }
-    // statuses to ignore as not active
     const ignoredStatuses = ["cancelled", "cancelled_in_time", "cancelled_late", "cancelled_by_tutor", "makeup_used"];
-    // Check bookings
+
     const taken = bookings.some(b => {
-      if (b.tutorId !== tutorId) return false
+      if (b.tutorId !== tutorId) return false;
+      if (ignoredStatuses.includes(b.status ?? "")) return false;
+      
+      // KLUCZOWA ZMIANA: Sprawdzamy tylko po konkretnej dacie, nie po dniu tygodnia.
+      if (b.fullDate !== date) return false; 
+      if (!b.time) return false;
 
-      // ignoruj odwołane lekcje i makeup_used
-      if (ignoredStatuses.includes(b.status ?? "")) return false
+      const lessonBufferBefore = typeof b.bufferBefore === "number" ? b.bufferBefore : 0;
+      const lessonBufferAfter = typeof b.bufferAfter === "number" ? b.bufferAfter : 0;
 
-      // Determine bufferBefore/bufferAfter for this lesson (default 0)
-      const lessonBufferBefore = typeof b.bufferBefore === "number" ? b.bufferBefore : 0
-      const lessonBufferAfter = typeof b.bufferAfter === "number" ? b.bufferAfter : 0
+      const lessonStart = new Date((b.fullDate || "") + "T" + b.time);
+      const lessonEnd = addMinutes(new Date(lessonStart), b.duration ?? 60);
+      const blockStart = addMinutes(new Date(lessonStart), -lessonBufferBefore);
+      const blockEnd = addMinutes(new Date(lessonEnd), lessonBufferAfter);
 
-      // Sprawdzenie rezerwacji jednorazowej
-      if (!b.isRecurring && b.fullDate === (date ?? "")) {
-        if (b.status && ignoredStatuses.includes(b.status)) return false;
-        if (!b.time) return false;
-        // Start and end time for existing lesson
-        const lessonStart = new Date((b.fullDate || "") + "T" + (b.time || "00:00"))
-        const lessonEnd = addMinutes(new Date(lessonStart), b.duration ?? 60)
-        const blockStart = addMinutes(new Date(lessonStart), -lessonBufferBefore)
-        const blockEnd = addMinutes(new Date(lessonEnd), lessonBufferAfter)
-        // Start and end time for new lesson
-        const newStart = new Date((date || "") + "T" + (time || "00:00"))
-        const newEnd = addMinutes(new Date(newStart), duration)
-        // Apply buffer for new lesson if provided (for new slot)
-        const newBufferBefore = typeof bufferBeforeParam === "number" ? bufferBeforeParam : 0
-        const newBufferAfter = typeof bufferAfterParam === "number" ? bufferAfterParam : 0
-        const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore)
-        const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
-        // Conflict if newBlockStart < blockEnd && newBlockEnd > blockStart
-        if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
-          return true
-        }
-        return false
+      const newStart = new Date((date || "") + "T" + time);
+      const newEnd = addMinutes(new Date(newStart), duration);
+      const newBufferBefore = typeof bufferBeforeParam === "number" ? bufferBeforeParam : 0;
+      const newBufferAfter = typeof bufferAfterParam === "number" ? bufferAfterParam : 0;
+      const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore);
+      const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter);
+
+      if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
+        return true;
       }
+      return false;
+    });
 
-      // Sprawdzenie rezerwacji cyklicznej (weekly)
-      if (b.isRecurring && b.day === givenDay && schoolYearStart && schoolYearEnd) {
-  // jeśli ta konkretna data cyklicznej lekcji została odwołana — pomiń
-  if (
-    ["cancelled_in_time", "cancelled_by_tutor", "cancelled_late", "makeup_used"].includes(b.status ?? "") &&
-    b.fullDate === date
-  ) {
-    return false;
-  }
-
-  if (ignoredStatuses.includes(b.status ?? "")) return false;
-        const d = new Date(date ?? "")
-        if (d < schoolYearStart || d > schoolYearEnd) return false
-        if (!b.time) return false;
-        const lessonStart = new Date((date || "") + "T" + (b.time || "00:00"))
-        const lessonEnd = addMinutes(new Date(lessonStart), b.duration ?? 60)
-        const blockStart = addMinutes(new Date(lessonStart), -lessonBufferBefore)
-        const blockEnd = addMinutes(new Date(lessonEnd), lessonBufferAfter)
-        // New lesson
-        const newStart = new Date((date || "") + "T" + (time || "00:00"))
-        const newEnd = addMinutes(new Date(newStart), duration)
-        const newBufferBefore = typeof bufferBeforeParam === "number" ? bufferBeforeParam : 0
-        const newBufferAfter = typeof bufferAfterParam === "number" ? bufferAfterParam : 0
-        const newBlockStart = addMinutes(new Date(newStart), -newBufferBefore)
-        const newBlockEnd = addMinutes(new Date(newEnd), newBufferAfter)
-        if (newBlockStart < blockEnd && newBlockEnd > blockStart) {
-          return true
-        }
-        return false
-      }
-
-      return false
-    })
-    // Sprawdź, czy istnieje odwołana rezerwacja jednorazowa (czyli wyjątek od cyklicznej)
-    const cancelledSameSlot = bookings.some(b =>
-      !b.isRecurring &&
-      ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "") &&
-      b.tutorId === tutorId &&
-      b.fullDate === date &&
-      b.time === time
-    )
-
-    if (cancelledSameSlot) {
-      return false
-    }
     if (taken) return true;
-    // Check vacations for this tutor
+
     const slotStart = date + "T" + time;
-    // Compute end time string
     const endDateObj = new Date(date + "T" + time);
     endDateObj.setMinutes(endDateObj.getMinutes() + duration);
-    const slotEnd = endDateObj.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+    const slotEnd = endDateObj.toISOString().slice(0, 16);
+    
     for (const vac of vacations) {
       if (vac.tutorId === tutorId) {
-        if (
-          intervalsOverlap(
-            slotStart,
-            slotEnd,
-            vac.startDateTime,
-            vac.endDateTime
-          )
-        ) {
+        if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
           return true;
         }
       }
@@ -365,7 +299,7 @@ useEffect(() => {
     return false;
   }
 
-// Zwraca dostępne daty TYLKO z puli jednorazowej (blokada "kradzieży" stałych dni)
+  // Zwraca dostępne daty TYLKO z puli jednorazowej (blokada "kradzieży" stałych dni)
   const getAvailableDates = () => {
     const start = schoolYearStart;
     const end = schoolYearEnd;
@@ -385,7 +319,6 @@ useEffect(() => {
         (!a.lessonType || !a.lessonType.includes(normalizeMode(lessonMode)))
       ) return
       
-      // Przetwarzamy WYŁĄCZNIE dostępność jednorazową
       if (a.type === "one-time") {
         let date = "";
         
@@ -428,7 +361,7 @@ useEffect(() => {
     return Array.from(datesSet).sort()
   }
 
-// Zwraca dostępne sloty, poprawnie skanując cały rok dla rezerwacji stałych
+  // Zwraca dostępne sloty, poprawnie skanując cały rok dla rezerwacji stałych
   const getAvailableSlots = (type: "weekly" | "one-time") => {
     const slots: string[] = []
     const filtered = availability.filter(a => {
@@ -510,7 +443,7 @@ useEffect(() => {
           }
           
         } else {
-          // PATCH: Niezawodny bypass dla odwołanych terminów (jednorazowych)
+          // Niezawodny bypass dla odwołanych terminów (jednorazowych)
           const slotTaken = isSlotTaken(tutorId, fullDate, timeStr, duration, bufferBefore, bufferAfter);
           
           const hasCancelledOverride = bookings.some(b => 
@@ -539,7 +472,8 @@ useEffect(() => {
   // Rozszerzona obsługa rezerwacji cyklicznych — zapisuje wszystkie wystąpienia do końca roku szkolnego
   const handleBooking = async (type: "weekly" | "one-time") => {
     if (isSubmitting) return; 
-   setIsSubmitting(true);
+    setIsSubmitting(true);
+    
     const refreshBookings = async () => {
       const booksSnap = await getDocs(collection(db, "bookings"));
       setBookings(booksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
@@ -555,12 +489,12 @@ useEffect(() => {
       (currentUser?.accountType === "parent" && !selectedChildId)
     ) {
       alert("Uzupełnij wszystkie wymagane pola.")
+      setIsSubmitting(false)
       return
     }
 
     let fullDate = specificDate;
     if (type === "weekly" && day && schoolYearStart) {
-      // PATCH: Use today at midnight for weekly booking
       const todayMid = new Date();
       todayMid.setHours(0, 0, 0, 0);
       const dayIndex = daysOfWeek.findIndex(d => d.value === day);
@@ -600,14 +534,12 @@ useEffect(() => {
       }
     }
 
-    // Vacation awareness: check if slot overlaps any vacation for this tutor
-    // Compute slot start and end
     let slotStart: string, slotEnd: string;
     if (type === "weekly" && day && fullDate) {
       slotStart = fullDate + "T" + time;
       const endDateObj = new Date(fullDate + "T" + time);
       endDateObj.setMinutes(endDateObj.getMinutes() + duration);
-      slotEnd = endDateObj.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+      slotEnd = endDateObj.toISOString().slice(0, 16);
     } else if (type === "one-time" && fullDate) {
       slotStart = fullDate + "T" + time;
       const endDateObj = new Date(fullDate + "T" + time);
@@ -617,17 +549,12 @@ useEffect(() => {
       slotStart = "";
       slotEnd = "";
     }
+    
     for (const vac of vacations) {
       if (vac.tutorId === tutorId) {
-        if (
-          intervalsOverlap(
-            slotStart,
-            slotEnd,
-            vac.startDateTime,
-            vac.endDateTime
-          )
-        ) {
+        if (intervalsOverlap(slotStart, slotEnd, vac.startDateTime, vac.endDateTime)) {
           alert("Korepetytor jest na urlopie w tym terminie.");
+          setIsSubmitting(false)
           return;
         }
       }
@@ -635,6 +562,7 @@ useEffect(() => {
 
     if (isSlotTaken(tutorId || "", fullDate || "", time || "", duration, bufferBefore, bufferAfter)) {
       alert("Ten termin jest już zajęty.")
+      setIsSubmitting(false)
       return
     }
 
@@ -642,6 +570,9 @@ useEffect(() => {
       tutors.find(t => t.id === tutorId)?.firstName +
       " " +
       tutors.find(t => t.id === tutorId)?.lastName
+
+    // PATCH: Dodano naprawioną zmienną dla poprawnych statusów (wspiera admina i tutora)
+    const isMakeupEligible = !!makeupForLessonId && ["student", "parent", "tutor", "admin"].includes(currentUser?.accountType || "");
 
     try {
       if (type === "weekly" && day && schoolYearStart && schoolYearEnd) {
@@ -652,10 +583,10 @@ useEffect(() => {
         const d = new Date(first)
         const toAdd: Omit<Booking, "id">[] = []
         const now = new Date()
+        
         while (d <= schoolYearEnd) {
           if (d >= now) {
             const dStr = format(new Date(d), "yyyy-MM-dd")
-            // Vacation awareness for each occurrence
             const slotStartRec = dStr + "T" + time;
             const endDateObj = new Date(dStr + "T" + time);
             endDateObj.setMinutes(endDateObj.getMinutes() + duration);
@@ -663,14 +594,7 @@ useEffect(() => {
             let isVacation = false;
             for (const vac of vacations) {
               if (vac.tutorId === tutorId) {
-                if (
-                  intervalsOverlap(
-                    slotStartRec,
-                    slotEndRec,
-                    vac.startDateTime,
-                    vac.endDateTime
-                  )
-                ) {
+                if (intervalsOverlap(slotStartRec, slotEndRec, vac.startDateTime, vac.endDateTime)) {
                   isVacation = true;
                   break;
                 }
@@ -680,71 +604,38 @@ useEffect(() => {
               d.setDate(d.getDate() + 7)
               continue;
             }
+            
             if (!isSlotTaken(tutorId || "", dStr || "", time || "", duration, bufferBefore, bufferAfter)) {
-              // If makeupForLessonId is set, treat the first occurrence as odrabiana (makeup), rest as scheduled
-              if (
-                makeupForLessonId &&
-                toAdd.length === 0 &&
-                (currentUser?.accountType === "student" ||
-                  currentUser?.accountType === "parent" ||
-                  currentUser?.accountType === "admin")
-              ) {
+              if (isMakeupEligible && toAdd.length === 0) {
                 toAdd.push({
-                  tutorId,
-                  tutorName,
-                  studentId,
-                  studentName,
-                  time,
-                  duration,
-                  subject,
-                  lessonMode,
-                  status: "makeup",
-                  originalLessonId: makeupForLessonId,
-                  day,
-                  fullDate: dStr,
-                  isRecurring: true,
-                  createdAt: new Date().toISOString(),
-                  createdById: currentUser?.id ?? "",
+                  tutorId, tutorName, studentId, studentName, time, duration, subject, lessonMode,
+                  status: "makeup", originalLessonId: makeupForLessonId, day, fullDate: dStr,
+                  isRecurring: true, createdAt: new Date().toISOString(), createdById: currentUser?.id ?? "",
                   createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
-                  bufferBefore,
-                  bufferAfter,
+                  bufferBefore, bufferAfter,
                 })
               } else {
                 toAdd.push({
-                  tutorId,
-                  tutorName,
-                  studentId,
-                  studentName,
-                  time,
-                  duration,
-                  subject,
-                  lessonMode,
-                  status: "scheduled",
-                  day,
-                  fullDate: dStr,
-                  isRecurring: true,
-                  createdAt: new Date().toISOString(),
-                  createdById: currentUser?.id ?? "",
-                  createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
-                  bufferBefore,
-                  bufferAfter,
+                  tutorId, tutorName, studentId, studentName, time, duration, subject, lessonMode,
+                  status: "scheduled", day, fullDate: dStr, isRecurring: true, createdAt: new Date().toISOString(),
+                  createdById: currentUser?.id ?? "", createdByRole: (currentUser?.accountType ?? "student") as "parent" | "student" | "tutor" | "admin",
+                  bufferBefore, bufferAfter,
                 })
               }
             }
           }
           d.setDate(d.getDate() + 7)
         }
+        
         if (toAdd.length === 0) {
           alert("Wszystkie terminy cykliczne są już zajęte lub przypadają na urlop korepetytora.")
+          setIsSubmitting(false)
           return
         }
+        
         for (const bookingData of toAdd) {
-          // If this is a makeup booking, update original booking's status after adding
           let docRef;
-          if (
-            bookingData.status === "makeup" &&
-            bookingData.originalLessonId
-          ) {
+          if (bookingData.status === "makeup" && bookingData.originalLessonId) {
             docRef = await addDoc(collection(db, "bookings"), bookingData)
             await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
           } else {
@@ -752,12 +643,8 @@ useEffect(() => {
           }
           await notifyBooking({
             booking: {
-              id: docRef.id,
-              studentId: bookingData.studentId,
-              tutorId: bookingData.tutorId,
-              studentName: bookingData.studentName,
-              fullDate: bookingData.fullDate,
-              time: bookingData.time,
+              id: docRef.id, studentId: bookingData.studentId, tutorId: bookingData.tutorId,
+              studentName: bookingData.studentName, fullDate: bookingData.fullDate, time: bookingData.time,
               createdByRole: bookingData.createdByRole,
             },
           })
@@ -767,39 +654,21 @@ useEffect(() => {
       } else {
         // one-time booking
         const bookingData: Omit<Booking, "id"> = {
-          tutorId,
-          tutorName,
-          studentId,
-          studentName,
-          time,
-          duration,
-          subject,
-          lessonMode,
-          day: null,
-          fullDate,
-          isRecurring: false,
-          createdAt: new Date().toISOString(),
-          createdById: currentUser!.id,
-          createdByRole: currentUser?.accountType ?? "student",
-          bufferBefore,
-          bufferAfter,
+          tutorId, tutorName, studentId, studentName, time, duration, subject, lessonMode,
+          day: null, fullDate, isRecurring: false, createdAt: new Date().toISOString(),
+          createdById: currentUser!.id, createdByRole: currentUser?.accountType ?? "student",
+          bufferBefore, bufferAfter,
         }
-        if (
-          makeupForLessonId &&
-          (currentUser?.accountType === "student" ||
-            currentUser?.accountType === "parent" ||
-            currentUser?.accountType === "admin")
-        ) {
+        
+        if (isMakeupEligible) {
           bookingData.status = "makeup"
           bookingData.originalLessonId = makeupForLessonId
         } else {
           bookingData.status = "scheduled"
         }
+        
         let docRef;
-        if (
-          bookingData.status === "makeup" &&
-          bookingData.originalLessonId
-        ) {
+        if (bookingData.status === "makeup" && bookingData.originalLessonId) {
           docRef = await addDoc(collection(db, "bookings"), bookingData)
           await updateDoc(doc(db, "bookings", bookingData.originalLessonId), { status: "makeup_used" })
         } else {
@@ -807,18 +676,15 @@ useEffect(() => {
         }
         await notifyBooking({
           booking: {
-            id: docRef.id,
-            studentId: bookingData.studentId,
-            tutorId: bookingData.tutorId,
-            studentName: bookingData.studentName,
-            fullDate: bookingData.fullDate,
-            time: bookingData.time,
+            id: docRef.id, studentId: bookingData.studentId, tutorId: bookingData.tutorId,
+            studentName: bookingData.studentName, fullDate: bookingData.fullDate, time: bookingData.time,
             createdByRole: bookingData.createdByRole,
           },
         })
         await refreshBookings();
         alert("Zarezerwowano lekcję!")
       }
+      
       setDay("")
       setSpecificDate("")
       setTime("")
@@ -828,13 +694,12 @@ useEffect(() => {
       setLessonMode("")
       setMakeupForLessonId(null)
     } catch (err) {
-         console.error(err)
-         alert("Błąd podczas rezerwacji.")
-       } finally {
-         setIsSubmitting(false);
-       }
-     }
-
+      console.error(err)
+      alert("Błąd podczas rezerwacji.")
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -848,18 +713,18 @@ useEffect(() => {
         <CardHeader><CardTitle>Rezerwacja stała</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {(currentUser?.accountType === "admin" || currentUser?.accountType === "parent" || currentUser?.accountType === "student") && (
-  <>
-    <Label>Korepetytor</Label>
-    <Select value={tutorId} onValueChange={setTutorId}>
-      <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
-      <SelectContent>
-        {tutors.map(t => (
-          <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </>
-)}
+            <>
+              <Label>Korepetytor</Label>
+              <Select value={tutorId} onValueChange={setTutorId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
+                <SelectContent>
+                  {tutors.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
 
           <Label>Tryb zajęć</Label>
           <Select value={lessonMode} onValueChange={(v) => setLessonMode(v.toLowerCase())}>
@@ -890,7 +755,6 @@ useEffect(() => {
             <SelectTrigger><SelectValue placeholder="Wybierz dzień" /></SelectTrigger>
             <SelectContent>
               {(() => {
-                // Build a set of allowed days for the current tutor and selected lessonMode
                 const allowedDays = new Set<string>();
                 availability.forEach(a => {
                   if (
@@ -900,7 +764,6 @@ useEffect(() => {
                     Array.isArray(a.lessonType) &&
                     a.lessonType.includes(normalizeMode(lessonMode))
                   ) {
-                    // a.day may be e.g. "monday" etc.
                     allowedDays.add(String(a.day).toLowerCase().trim());
                   }
                 });
@@ -918,16 +781,16 @@ useEffect(() => {
             <SelectTrigger><SelectValue placeholder="Wybierz godzinę" /></SelectTrigger>
             <SelectContent>
               {tutorId && lessonMode && duration && day &&
-  getAvailableSlots("weekly")
-    .sort((a, b) => {
-      const [ah, am] = (a || "").split(":").map(Number);
-      const [bh, bm] = (b || "").split(":").map(Number);
-      return ah * 60 + am - (bh * 60 + bm);
-    })
-    .map(s => (
-      <SelectItem key={s} value={s}>{s}</SelectItem>
-    ))
-}
+                getAvailableSlots("weekly")
+                  .sort((a, b) => {
+                    const [ah, am] = (a || "").split(":").map(Number);
+                    const [bh, bm] = (b || "").split(":").map(Number);
+                    return ah * 60 + am - (bh * 60 + bm);
+                  })
+                  .map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))
+              }
             </SelectContent>
           </Select>
 
@@ -951,31 +814,31 @@ useEffect(() => {
             </SelectContent>
           </Select>
 
-{(currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
-  <>
-          <label>
-            Bufor przed (min):
-            <input
-              type="number"
-              min={0}
-              step={5}
-              value={bufferBefore}
-              onChange={e => setBufferBefore(Number(e.target.value))}
-            />
-          </label>
+          {(currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
+            <>
+              <label>
+                Bufor przed (min):
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={bufferBefore}
+                  onChange={e => setBufferBefore(Number(e.target.value))}
+                />
+              </label>
 
-          <label>
-            Bufor po (min):
-            <input
-              type="number"
-              min={0}
-              step={5}
-              value={bufferAfter}
-              onChange={e => setBufferAfter(Number(e.target.value))}
-            />
-          </label>
-</>
-)}
+              <label>
+                Bufor po (min):
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={bufferAfter}
+                  onChange={e => setBufferAfter(Number(e.target.value))}
+                />
+              </label>
+            </>
+          )}
 
           {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
             <>
@@ -995,8 +858,8 @@ useEffect(() => {
           )}
 
           <Button disabled={isSubmitting} onClick={() => handleBooking("weekly")}>
-     {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
-   </Button>
+            {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
+          </Button>
         </CardContent>
       </Card>
 
@@ -1004,18 +867,18 @@ useEffect(() => {
         <CardHeader><CardTitle>Rezerwacja jednorazowa</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {(currentUser?.accountType === "admin" || currentUser?.accountType === "parent" || currentUser?.accountType === "student") && (
-  <>
-    <Label>Korepetytor</Label>
-    <Select value={tutorId} onValueChange={setTutorId}>
-      <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
-      <SelectContent>
-        {tutors.map(t => (
-          <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </>
-)}
+            <>
+              <Label>Korepetytor</Label>
+              <Select value={tutorId} onValueChange={setTutorId}>
+                <SelectTrigger><SelectValue placeholder="Wybierz korepetytora" /></SelectTrigger>
+                <SelectContent>
+                  {tutors.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
 
           <Label>Tryb zajęć</Label>
           <Select value={lessonMode} onValueChange={(v) => setLessonMode(v.toLowerCase())}>
@@ -1045,9 +908,9 @@ useEffect(() => {
           <Select value={specificDate} onValueChange={setSpecificDate}>
             <SelectTrigger><SelectValue placeholder="Wybierz datę" /></SelectTrigger>
             <SelectContent>
-          {getAvailableDates().map(date => (
-            <SelectItem key={date} value={date}>{formatPolishDate(date || "")}</SelectItem>
-          ))}
+              {getAvailableDates().map(date => (
+                <SelectItem key={date} value={date}>{formatPolishDate(date || "")}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -1056,16 +919,16 @@ useEffect(() => {
             <SelectTrigger><SelectValue placeholder="Wybierz godzinę" /></SelectTrigger>
             <SelectContent>
               {tutorId && lessonMode && duration && specificDate &&
-  getAvailableSlots("one-time")
-    .sort((a, b) => {
-      const [ah, am] = (a || "").split(":").map(Number);
-      const [bh, bm] = (b || "").split(":").map(Number);
-      return ah * 60 + am - (bh * 60 + bm);
-    })
-    .map(s => (
-      <SelectItem key={s} value={s}>{s}</SelectItem>
-    ))
-}
+                getAvailableSlots("one-time")
+                  .sort((a, b) => {
+                    const [ah, am] = (a || "").split(":").map(Number);
+                    const [bh, bm] = (b || "").split(":").map(Number);
+                    return ah * 60 + am - (bh * 60 + bm);
+                  })
+                  .map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))
+              }
             </SelectContent>
           </Select>
 
@@ -1089,30 +952,30 @@ useEffect(() => {
             </SelectContent>
           </Select>
 
-{(currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
-  <>
-          <label>Bufor przed (min):
-            <input
-              type="number"
-              min={0}
-              step={5}
-              value={bufferBefore}
-              onChange={e => setBufferBefore(Number(e.target.value))}
-            />
-          </label>
+          {(currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
+            <>
+              <label>Bufor przed (min):
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={bufferBefore}
+                  onChange={e => setBufferBefore(Number(e.target.value))}
+                />
+              </label>
 
-          <label>
-            Bufor po (min):
-            <input
-              type="number"
-              min={0}
-              step={5}
-              value={bufferAfter}
-              onChange={e => setBufferAfter(Number(e.target.value))}
-            />
-          </label>
-          </>
-)}
+              <label>
+                Bufor po (min):
+                <input
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={bufferAfter}
+                  onChange={e => setBufferAfter(Number(e.target.value))}
+                />
+              </label>
+            </>
+          )}
 
           {(currentUser?.accountType === "parent" || currentUser?.accountType === "tutor" || currentUser?.accountType === "admin") && (
             <>
@@ -1131,38 +994,38 @@ useEffect(() => {
             </>
           )}
 
-{currentUser && currentUser.accountType && ["student", "parent", "tutor", "admin"].includes(currentUser.accountType) && (
+          {currentUser && currentUser.accountType && ["student", "parent", "tutor", "admin"].includes(currentUser.accountType) && (
             <>
               <Label>Odrobienie lekcji</Label>
               <Select value={makeupForLessonId || ""} onValueChange={setMakeupForLessonId}>
                 <SelectTrigger><SelectValue placeholder="Wybierz lekcję do odrobienia" /></SelectTrigger>
                 <SelectContent>
                   {bookings
-  .filter(
-    b =>
-      ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "") &&
-      b.studentId ===
-        (currentUser?.accountType === "student"
-          ? currentUser?.id
-          : selectedChildId)
-  )
-  .sort(
-    (a, b) =>
-      new Date((a.fullDate || "") + "T" + (a.time || "00:00")).getTime() -
-      new Date((b.fullDate || "") + "T" + (b.time || "00:00")).getTime()
-  )
-  .map(b => (
-    <SelectItem key={b.id} value={b.id}>
-      {`${b.subject} - ${formatPolishDate(b.fullDate || "")} ${b.time ?? ""}`}
-    </SelectItem>
-  ))}
+                    .filter(
+                      b =>
+                        ["cancelled_in_time", "cancelled_by_tutor"].includes(b.status ?? "") &&
+                        b.studentId ===
+                          (currentUser?.accountType === "student"
+                            ? currentUser?.id
+                            : selectedChildId)
+                    )
+                    .sort(
+                      (a, b) =>
+                        new Date((a.fullDate || "") + "T" + (a.time || "00:00")).getTime() -
+                        new Date((b.fullDate || "") + "T" + (b.time || "00:00")).getTime()
+                    )
+                    .map(b => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {`${b.subject} - ${formatPolishDate(b.fullDate || "")} ${b.time ?? ""}`}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </>
           )}
           <Button disabled={isSubmitting} onClick={() => handleBooking("one-time")}>
-     {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
-   </Button>
+            {isSubmitting ? "Przetwarzanie..." : "Zarezerwuj lekcję"}
+          </Button>
         </CardContent>
       </Card>
     </div>
