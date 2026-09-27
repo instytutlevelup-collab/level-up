@@ -64,7 +64,7 @@ export default function LessonsPage() {
   const [selectedTutor, setSelectedTutor] = useState("")
   const [tutorOptions, setTutorOptions] = useState<string[]>([])
   const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedDate, setSelectedDate] = useState(""); // Nowy stan dla filtra daty
+  const [selectedDate, setSelectedDate] = useState(""); 
   const [editingValues, setEditingValues] = useState<Record<string, { status?: string; createdByRole?: string; cancelledByRole?: string }>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
@@ -420,6 +420,7 @@ export default function LessonsPage() {
                           </div>
                           <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-600">
                             <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5 text-gray-400" /> {b.subject || "-"}</span>
+                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-400" /> {b.duration} min</span>
                             <span className="flex items-center gap-1">{modeIcon} {b.lessonMode || "-"}</span>
                             {currentUser?.accountType !== "tutor" && b.tutorName && (
                                 <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm">
@@ -692,7 +693,6 @@ export default function LessonsPage() {
                       </select>
                   </div>
                   
-                  {/* Nowy filtr daty dla administratora i korepetytora */}
                   <div className="flex-1 space-y-1">
                       <label className="text-xs font-medium text-gray-700">Wybierz datę</label>
                       <input
